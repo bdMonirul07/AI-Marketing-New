@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #00f3ff;
+  --color-secondary: #bf00ff;
+  --color-accent: #ff007f;
+  --color-background-dark: #0B0E14;
+  --color-card-dark: #151921;
+  --font-inter: "Inter", sans-serif;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background-dark);
+    color: white;
+    font-family: var(--font-inter);
+    margin: 0;
+    overflow-x: hidden;
+  }
+
+  /* Custom Scrollbar for premium feel */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #0B0E14;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #2A2F3A;
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3A3F4A;
+  }
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/5 backdrop-blur-md border border-white/10;
+  }
+
+  .neon-border {
+    border: 1px solid var(--color-primary);
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.3), inset 0 0 5px rgba(0, 243, 255, 0.2);
+  }
+
+  .neon-border-purple {
+    border: 1px solid var(--color-secondary);
+    box-shadow: 0 0 15px rgba(191, 0, 255, 0.3), inset 0 0 5px rgba(191, 0, 255, 0.2);
+  }
+
+  .neon-text {
+    text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+  }
+
+  .animate-slow-fade {
+    animation: fade 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes fade {
+    from {
+      opacity: 0.4;
+    }
+
+    to {
+      opacity: 0.8;
+    }
+  }
+}
+
+/* Global Font Import (Mocked as if from Google Fonts) */
+@font-face {
+  font-family: 'Inter';
+  src: url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+}
