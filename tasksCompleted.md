@@ -21,9 +21,13 @@ This document outlines the specific UI, UX, and functional improvements implemen
 - Optimized "Target Sets" list rendering with remove functionality.
 
 ### **Strategy Hub (Research & Probe)**
-- **Bug Fix**: Restored "CONTINUE TO RESEARCH ⚡" button functionality.
-- Implemented multi-step probing logic with dynamic textarea inputs.
-- Downsized UI for long research summaries.
+- **Gemini-Powered Multi-Step Strategy**: 
+  - Implemented a dynamic 3-step workflow integrated with a simulated Gemini backend.
+  - **Step 1 (Baseline)**: Captures user's initial creative brief.
+  - **Step 2 (Level 1)**: Gemini analyzes the brief and generates 5 initial follow-up questions.
+  - **Step 3 (Level 2)**: Gemini deeper-dives into the context (Brief + Level 1 questions) to generate 5 advanced diagnostics.
+- Implemented real-time loading states (shimmer/spinner) during AI analysis.
+- Consistently updated the final Creative Brief to include all Gemini-generated insights for the Studio phase.
 
 ### **Creative Config (Creative Hub)**
 - Reduced size of input fields and selection menus.

@@ -1,4 +1,5 @@
 import './style.css'
+import { deployToTikTok } from './tiktokDeploy.js'
 
 const API_BASE = 'http://localhost:5243/api'
 
@@ -6,12 +7,18 @@ const API_BASE = 'http://localhost:5243/api'
 const state = {
   activeRole: 'Expert',
   activeScreen: 'Objective',
+  isLoadingStrategy: false,
+  strategyLoadingMessage: 'Analyzing Brand DNA...',
   marketingData: {
     objective: null,
     targeting: [],
     goal: '',
     probeAnswers: Array(10).fill(''),
-    strategyStep: 1, // 1: Research, 2: Probe Part 1, 3: Probe Part 2
+    strategyStep: 1, // 1: Research, 2: Level 1 Qs, 3: Level 2 Qs
+    level1Questions: [],
+    level1Answers: Array(5).fill(''),
+    level2Questions: [],
+    level2Answers: Array(5).fill(''),
     stylePreset: 'Cinematic',
     aspectRatio: '1:1',
     generationPhotos: 1,
@@ -37,6 +44,30 @@ const state = {
       reach: 40,
       click: 35,
       sales: 25
+    },
+    cmoQueue: [],
+    selectedAssets: [],
+    platformConfig: {
+      tiktok: {
+        advertiser_id: '',
+        access_token: '',
+        pixel_id: '',
+        identity_id: '',
+        campaign_id: '',
+        daily_budget: 400,
+        schedule_start: '',
+        schedule_end: '',
+        bid: 120,
+        // Advanced Params (User Controlled)
+        placement: 'PLACEMENT_TIKTOK',
+        budget_mode: 'BUDGET_MODE_DAILY',
+        pacing: 'PACING_MODE_SMOOTH',
+        bid_type: 'BID_TYPE_COST_CAP',
+        status: 'ENABLE',
+        cta: 'LEARN_MORE',
+        custom_ad_name: '',
+        interests: ''
+      }
     }
   }
 }
@@ -75,6 +106,7 @@ const roles = {
     screens: [
       { id: 'BudgetMatrix', label: 'Budget & Matrix', icon: '📈' },
       { id: 'Approvals', label: 'Ad Approvals', icon: '✅' },
+      { id: 'DeploySelection', label: 'Platform Selection', icon: '🎯' },
       { id: 'Notifications', label: 'Notifications', icon: '🔔' },
     ]
   }
@@ -108,6 +140,84 @@ function switchScreen(screenId) {
   updateUI()
 }
 
+function showNotification(message, type = 'success') {
+  const overlay = document.createElement('div')
+  overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center animate-in fade-in duration-300'
+  overlay.id = 'notification-overlay'
+
+  overlay.innerHTML = `
+    <div class="bg-[#0B0F15] border border-white/10 p-8 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-sm w-full mx-6 text-center space-y-6 animate-in zoom-in-95 duration-300">
+        <div class="w-16 h-16 ${type === 'success' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-rose-500/10 text-rose-500 border-rose-500/20'} rounded-full flex items-center justify-center mx-auto border-2 text-2xl">
+            ${type === 'success' ? '✓' : '⚠'}
+        </div>
+        <div class="space-y-2">
+            <h3 class="text-white font-black uppercase tracking-tighter text-xl">${type === 'success' ? 'Success' : 'Attention'}</h3>
+            <p class="text-gray-400 text-sm font-medium leading-relaxed">${message}</p>
+        </div>
+        <button id="close-notification" class="w-full py-3 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-gray-200 transition-all cursor-pointer">
+            Dismiss
+        </button>
+    </div>
+  `
+
+  document.body.appendChild(overlay)
+
+  document.getElementById('close-notification').onclick = () => {
+    overlay.classList.add('opacity-0', 'scale-95')
+    overlay.style.transition = 'all 0.3s ease'
+    setTimeout(() => overlay.remove(), 300)
+  }
+}
+
+function startPremiumLoading(type = 'strategy') {
+  const messages = type === 'strategy' ? [
+    'Analyzing Brand DNA...',
+    'Consulting Market Trends...',
+    'Optimizing Logical Framework...',
+    'Synthesizing Market Angles...',
+    'Finalizing AI Persona...'
+  ] : [
+    'Generating Visual Concepts...',
+    'Optimizing Ratios...',
+    'Applying Cinematic Filters...',
+    'Finalizing Creative Suite...'
+  ]
+
+  let i = 0
+  state.isLoadingStrategy = true
+  state.strategyLoadingMessage = messages[0]
+  renderStrategyHub()
+
+  const interval = setInterval(() => {
+    if (!state.isLoadingStrategy) {
+      clearInterval(interval)
+      return
+    }
+    i = (i + 1) % messages.length
+    state.strategyLoadingMessage = messages[i]
+
+    // Partially update DOM to avoid full re-render flickering
+    const loadingElem = document.querySelector('.animate-pulse')
+    if (loadingElem) loadingElem.innerText = messages[i]
+    else renderStrategyHub()
+  }, 2500)
+
+  return interval
+}
+
+async function saveCmoQueue() {
+  try {
+    await fetch(`${API_BASE}/cmo/queue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state.marketingData.cmoQueue)
+    })
+    console.log('✓ CMO Queue synced to server.')
+  } catch (e) {
+    console.warn('⚠ Could not sync CMO Queue to server.')
+  }
+}
+
 // --- UI Rendering ---
 function updateUI() {
   const currentRole = roles[state.activeRole]
@@ -123,12 +233,22 @@ function updateUI() {
   pageTitleName.innerText = currentScreen.id
 
   // Update Nav Links
-  navLinks.innerHTML = currentRole.screens.map(screen => `
-    <button class="nav-btn w-full flex items-center space-x-3 p-3 rounded-xl transition-all ${state.activeScreen === screen.id ? `bg-${currentRole.themeColor}-500/20 text-${currentRole.themeColor}-400 border border-${currentRole.themeColor}-500/30 font-bold` : 'text-gray-400 hover:text-white hover:bg-gray-800/50'}" data-screen="${screen.id}">
-      <span class="text-lg">${screen.icon}</span>
-      <span class="text-sm">${screen.label}</span>
-    </button>
-  `).join('')
+  navLinks.innerHTML = currentRole.screens.map(screen => {
+    const isApprovals = screen.id === 'Approvals'
+    const queueCount = state.marketingData.cmoQueue.length
+
+    return `
+      <button class="nav-btn w-full flex items-center justify-between p-3 rounded-xl transition-all ${state.activeScreen === screen.id ? `bg-${currentRole.themeColor}-500/20 text-${currentRole.themeColor}-400 border border-${currentRole.themeColor}-500/30 font-bold` : 'text-gray-400 hover:text-white hover:bg-gray-800/50'}" data-screen="${screen.id}">
+        <div class="flex items-center space-x-3">
+          <span class="text-lg">${screen.icon}</span>
+          <span class="text-sm">${screen.label}</span>
+        </div>
+        ${isApprovals && queueCount > 0 ? `
+          <span class="bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full animate-pulse">${queueCount}</span>
+        ` : ''}
+      </button>
+    `
+  }).join('')
 
   // Add event listeners to nav buttons
   document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -183,6 +303,9 @@ function renderScreen(screenId) {
       break
     case 'Notifications':
       renderNotificationsScreen()
+      break
+    case 'DeploySelection':
+      renderDeploySelectionScreen()
       break
     default:
       contentContainer.innerHTML = `<div class="flex items-center justify-center h-full"><h2 class="text-2xl text-gray-500">${screenId} Coming Soon...</h2></div>`
@@ -337,39 +460,27 @@ function renderTargetingScreen() {
 }
 
 function renderStrategyHub() {
-  const probeQuestions = [
-    "What is the primary visual vibe you want to convey?",
-    "Who is the main competitor we should differentiate from?",
-    "What is the single most important call to action?",
-    "Should we focus on product features or lifestyle benefits?",
-    "Which emotion should the ad evoke primarily?",
-    "What is the price point range for this campaign?",
-    "Are there any specific color palettes to avoid?",
-    "What is the ideal customer's primary frustration?",
-    "How long do you want the initial test phase to run?",
-    "What is the scale of the target audience (Local vs Global)?"
-  ]
-
   const step = state.marketingData.strategyStep
+  const isLoading = state.isLoadingStrategy
 
   contentContainer.innerHTML = `
     <div class="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-700">
         <!-- Progress Steps -->
         <div class="flex items-center justify-center space-x-3 mb-6">
-            <div class="flex items-center space-x-1.5 ${step >= 1 ? 'opacity-100' : 'opacity-30'}">
+            <button class="flex items-center space-x-1.5 transition-all hover:opacity-80 ${step >= 1 ? 'opacity-100' : 'opacity-30'}" onclick="state.marketingData.strategyStep = 1; renderStrategyHub()">
                 <span class="w-5 h-5 rounded-full ${step >= 1 ? 'bg-rose-500' : 'bg-gray-800'} text-[9px] flex items-center justify-center font-bold">1</span>
                 <span class="text-[9px] font-black uppercase tracking-widest text-white">Baseline</span>
-            </div>
+            </button>
             <div class="w-6 h-[1px] ${step > 1 ? 'bg-rose-500' : 'bg-gray-800'}"></div>
-            <div class="flex items-center space-x-1.5 ${step >= 2 ? 'opacity-100' : 'opacity-30'}">
+            <button class="flex items-center space-x-1.5 transition-all hover:opacity-80 ${step >= 2 ? 'opacity-100' : 'opacity-30'} ${state.marketingData.level1Questions.length === 0 ? 'pointer-events-none' : ''}" onclick="state.marketingData.strategyStep = 2; renderStrategyHub()">
                 <span class="w-5 h-5 rounded-full ${step >= 2 ? 'bg-cyan-500' : 'bg-gray-800'} text-[9px] flex items-center justify-center font-bold">2</span>
                 <span class="text-[9px] font-black uppercase tracking-widest text-white">Probe 1</span>
-            </div>
+            </button>
             <div class="w-6 h-[1px] ${step > 2 ? 'bg-cyan-500' : 'bg-gray-800'}"></div>
-            <div class="flex items-center space-x-1.5 ${step >= 3 ? 'opacity-100' : 'opacity-30'}">
+            <button class="flex items-center space-x-1.5 transition-all hover:opacity-80 ${step >= 3 ? 'opacity-100' : 'opacity-30'} ${state.marketingData.level2Questions.length === 0 ? 'pointer-events-none' : ''}" onclick="state.marketingData.strategyStep = 3; renderStrategyHub()">
                 <span class="w-5 h-5 rounded-full ${step >= 3 ? 'bg-purple-500' : 'bg-gray-800'} text-[9px] flex items-center justify-center font-bold">3</span>
                 <span class="text-[9px] font-black uppercase tracking-widest text-white">Final</span>
-            </div>
+            </button>
         </div>
 
         <!-- Section 1: Research & Strategy -->
@@ -383,53 +494,63 @@ function renderStrategyHub() {
                     <textarea id="hub-goal" class="w-full h-32 bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-2xl outline-none focus:border-rose-500 transition-all text-white placeholder:text-gray-800 text-sm" placeholder="e.g. I want to increase brand awareness...">${state.marketingData.goal}</textarea>
                 </div>
                 
-                <button id="btn-strategy-1" class="w-full py-4 bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-400 hover:to-purple-500 text-white font-black rounded-xl transition-all shadow-xl flex items-center justify-center gap-2 text-base uppercase tracking-widest">
-                    ANALYZE STRATEGY <span class="text-lg">✨</span>
+                <button id="btn-strategy-1" class="w-full py-4 bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-400 hover:to-purple-500 text-white font-black rounded-xl transition-all shadow-xl flex flex-col items-center justify-center gap-1 text-base uppercase tracking-widest disabled:opacity-50" ${isLoading ? 'disabled' : ''}>
+                    ${isLoading ? `<span class="text-[10px] opacity-70 animate-pulse">${state.strategyLoadingMessage}</span>` : 'ANALYZE STRATEGY <span class="text-lg">✨</span>'}
                 </button>
             </div>
         </div>
 
-        <!-- Section 2: Probe Part 1 (Q1-5) -->
+        <!-- Section 2: Probe Part 1 (Level 1 Qs) -->
         <div id="section-probe-1" class="${step === 2 ? 'block' : 'hidden'} space-y-6">
             <div class="text-center space-y-2">
                 <h2 class="text-3xl font-black uppercase tracking-tighter text-cyan-400">Probe <span class="text-white">Part 1</span></h2>
-                <p class="text-gray-500 text-xs font-medium italic">Visual & competitive benchmarks.</p>
+                <p class="text-gray-500 text-xs font-medium italic">Conceptual diagnostics based on your brief.</p>
             </div>
 
             <div class="bg-[#151921] border border-[#2A2F3A] rounded-[30px] p-8 shadow-2xl space-y-8">
-                ${probeQuestions.slice(0, 5).map((q, i) => `
-                    <div class="space-y-3">
-                        <label class="text-[9px] font-black text-cyan-500/50 uppercase tracking-widest">Parameter 0${i + 1}</label>
-                        <h3 class="text-base font-bold text-gray-200">${q}</h3>
-                        <input type="text" class="probe-hub-input w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-cyan-500/50 transition-all text-white text-sm" value="${state.marketingData.probeAnswers[i]}" data-idx="${i}">
-                    </div>
-                `).join('')}
+                <div class="space-y-6">
+                    ${state.marketingData.level1Questions.map((q, i) => `
+                        <div class="space-y-2">
+                            <label class="text-[9px] font-black text-cyan-500/50 uppercase tracking-widest mb-1 block">Question 0${i + 1}</label>
+                            <p class="text-sm font-bold text-gray-200 mb-2">${q}</p>
+                            <input type="text" value="${state.marketingData.level1Answers[i]}" class="probe-l1-input w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-cyan-500 text-white text-sm" data-index="${i}" placeholder="Enter your response...">
+                        </div>
+                    `).join('')}
+                </div>
                 
-                <button id="btn-strategy-2" class="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-600 text-white font-black rounded-xl hover:from-cyan-500 hover:to-indigo-500 shadow-xl uppercase tracking-widest flex items-center justify-center gap-2 text-base">
-                    ANALYZE STRATEGY <span class="text-lg">🚀</span>
-                </button>
+                <div class="flex gap-4">
+                  <button id="btn-prev-1" class="flex-1 py-4 border border-gray-700 text-gray-400 font-black rounded-xl hover:bg-gray-800 transition-all uppercase tracking-widest">Previous</button>
+                  <button id="btn-strategy-2" class="flex-2 py-4 bg-gradient-to-r from-cyan-600 to-indigo-600 text-white font-black rounded-xl hover:from-cyan-500 hover:to-indigo-500 shadow-xl uppercase tracking-widest flex flex-col items-center justify-center gap-1 text-base disabled:opacity-50" ${isLoading ? 'disabled' : ''}>
+                      ${isLoading ? `<span class="text-[10px] opacity-70 animate-pulse">${state.strategyLoadingMessage}</span>` : 'Next: Deep Dive <span class="text-lg">🚀</span>'}
+                  </button>
+                </div>
             </div>
         </div>
 
-        <!-- Section 3: Probe Part 2 (Q6-10) -->
+        <!-- Section 3: Probe Part 2 (Level 2 Qs) -->
         <div id="section-probe-2" class="${step === 3 ? 'block' : 'hidden'} space-y-6">
             <div class="text-center space-y-2">
                 <h2 class="text-3xl font-black uppercase tracking-tighter text-purple-400">Final <span class="text-white">Diagnostics</span></h2>
-                <p class="text-gray-500 text-xs font-medium italic">Price points & audience frustration.</p>
+                <p class="text-gray-500 text-xs font-medium italic">Advanced psychological campaign pillars.</p>
             </div>
 
             <div class="bg-[#151921] border border-[#2A2F3A] rounded-[30px] p-8 shadow-2xl space-y-8">
-                ${probeQuestions.slice(5, 10).map((q, i) => `
-                    <div class="space-y-3">
-                        <label class="text-[9px] font-black text-purple-500/50 uppercase tracking-widest">Parameter 0${i + 6}</label>
-                        <h3 class="text-base font-bold text-gray-200">${q}</h3>
-                        <input type="text" class="probe-hub-input w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500/50 transition-all text-white text-sm" value="${state.marketingData.probeAnswers[i + 5]}" data-idx="${i + 5}">
-                    </div>
-                `).join('')}
+                <div class="space-y-6">
+                    ${state.marketingData.level2Questions.map((q, i) => `
+                        <div class="space-y-2">
+                            <label class="text-[9px] font-black text-purple-500/50 uppercase tracking-widest mb-1 block">Deep Dive 0${i + 1}</label>
+                            <p class="text-sm font-bold text-gray-200 mb-2">${q}</p>
+                            <input type="text" value="${state.marketingData.level2Answers[i]}" class="probe-l2-input w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-white text-sm" data-index="${i}" placeholder="Enter final thoughts...">
+                        </div>
+                    `).join('')}
+                </div>
                 
-                <button id="btn-strategy-3" class="w-full py-5 bg-white text-black font-black rounded-xl hover:bg-cyan-400 transition-all shadow-2xl uppercase tracking-widest flex items-center justify-center gap-2 text-base">
-                    FINALIZE STEPS ⚡
-                </button>
+                <div class="flex gap-4">
+                  <button id="btn-prev-2" class="flex-1 py-5 border border-gray-700 text-gray-400 font-black rounded-xl hover:bg-gray-800 transition-all uppercase tracking-widest">Previous</button>
+                  <button id="btn-strategy-3" class="flex-2 py-5 bg-white text-black font-black rounded-xl hover:bg-cyan-400 transition-all shadow-2xl uppercase tracking-widest flex items-center justify-center gap-2 text-base">
+                      FINALIZE STEPS ⚡
+                  </button>
+                </div>
             </div>
         </div>
     </div>
@@ -440,23 +561,115 @@ function renderStrategyHub() {
     document.getElementById('hub-goal').oninput = (e) => state.marketingData.goal = e.target.value
   }
 
-  document.querySelectorAll('.probe-hub-input').forEach(input => {
-    input.oninput = (e) => {
-      state.marketingData.probeAnswers[parseInt(input.dataset.idx)] = e.target.value
-    }
-  })
+  if (document.querySelectorAll('.probe-l1-input')) {
+    document.querySelectorAll('.probe-l1-input').forEach(input => {
+      input.oninput = (e) => state.marketingData.level1Answers[input.dataset.index] = e.target.value
+    })
+  }
 
-  if (document.getElementById('btn-strategy-1')) {
-    document.getElementById('btn-strategy-1').onclick = () => {
+  if (document.querySelectorAll('.probe-l2-input')) {
+    document.querySelectorAll('.probe-l2-input').forEach(input => {
+      input.oninput = (e) => state.marketingData.level2Answers[input.dataset.index] = e.target.value
+    })
+  }
+
+  if (document.getElementById('btn-prev-1')) {
+    document.getElementById('btn-prev-1').onclick = () => {
+      state.marketingData.strategyStep = 1
+      renderStrategyHub()
+    }
+  }
+
+  if (document.getElementById('btn-prev-2')) {
+    document.getElementById('btn-prev-2').onclick = () => {
       state.marketingData.strategyStep = 2
       renderStrategyHub()
     }
   }
 
+  if (document.getElementById('btn-strategy-1')) {
+    document.getElementById('btn-strategy-1').onclick = async () => {
+      if (!state.marketingData.goal) return showNotification("Please enter a brief first.", "error")
+
+      const loadingInterval = startPremiumLoading('strategy')
+
+      try {
+        const res = await fetch(`${API_BASE}/gemini/questions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ brief: state.marketingData.goal })
+        })
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          console.warn("Gemini API Error, falling back to simulation:", errorData);
+
+          // Smart Fallback Questions
+          state.marketingData.level1Questions = [
+            `How does '${state.marketingData.goal}' align with your long-term brand legacy?`,
+            "What is the single most important emotion you want your audience to feel?",
+            "If this campaign were a physical space, what would the atmosphere be like?",
+            "What is the primary psychological barrier keeping your audience from acting now?",
+            "What does success look like for this campaign in terms of human impact, beyond numbers?"
+          ];
+          state.marketingData.strategyStep = 2;
+          return;
+        }
+
+        const data = await res.json()
+        state.marketingData.level1Questions = data.questions
+        state.marketingData.strategyStep = 2
+      } catch (e) {
+        console.error(e)
+        showNotification("Network error. Please check your connection.", "error")
+      } finally {
+        state.isLoadingStrategy = false
+        clearInterval(loadingInterval)
+        renderStrategyHub()
+      }
+    }
+  }
+
   if (document.getElementById('btn-strategy-2')) {
-    document.getElementById('btn-strategy-2').onclick = () => {
-      state.marketingData.strategyStep = 3
-      renderStrategyHub()
+    document.getElementById('btn-strategy-2').onclick = async () => {
+      const loadingInterval = startPremiumLoading('strategy')
+
+      try {
+        const res = await fetch(`${API_BASE}/gemini/follow-up`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            originalBrief: state.marketingData.goal,
+            previousQuestions: state.marketingData.level1Questions,
+            previousAnswers: state.marketingData.level1Answers
+          })
+        })
+
+        if (!res.ok) {
+          console.log('Gemini capacity reached. Activating Smart Fallback logic.');
+          // Smart Simulation Fallback
+          state.marketingData.level2Questions = [
+            "Based on your previous answers, what is the 'unspoken truth' your product represents?",
+            "What would be the most controversial but honest thing you could say about your brand?",
+            "How does this campaign create a sense of 'belonging' for your target tribe?",
+            "What is the ultimate transformation a customer goes through after interacting with this?",
+            "If you could only use one word to describe the 'soul' of this campaign, what would it be?"
+          ];
+          state.marketingData.strategyStep = 3;
+          return;
+        }
+
+        const data = await res.json()
+        state.marketingData.level2Questions = data.questions
+        state.marketingData.strategyStep = 3
+      } catch (e) {
+        console.error(e)
+        showNotification("Failed to connect to Gemini for follow-up.", "error")
+      } finally {
+        state.isLoadingStrategy = false
+        clearInterval(loadingInterval)
+        renderStrategyHub()
+      }
     }
   }
 
@@ -470,11 +683,18 @@ function renderStrategyHub() {
 function renderCreativeConfigScreen() {
   const bg = state.marketingData.brandGuidelines
   const tg = state.marketingData.targeting
-  const pr = state.marketingData.probeAnswers
+  const l1 = state.marketingData.level1Questions
+  const l2 = state.marketingData.level2Questions
 
   const consolidatedBrief = `[BRAND] ${bg.brandLabel || 'Not Set'}
 [TONE] ${bg.tone} | [LANG] ${bg.language}
 [IDENTITY] ${bg.description || 'No description provided.'}
+
+[WHITELIST]
+${bg.whitelist || 'No specific inclusions provided.'}
+
+[BLACKLIST]
+${bg.blacklist || 'No specific exclusions provided.'}
 
 [AUDIENCE] ${tg.length} target segments prioritized.
 ${tg.map(t => `- ${t.country} (${t.ageMin}-${t.ageMax}, ${t.gender})`).join('\n')}
@@ -482,7 +702,8 @@ ${tg.map(t => `- ${t.country} (${t.ageMin}-${t.ageMax}, ${t.gender})`).join('\n'
 [STRATEGY INSIGHTS]
 - Objective: ${state.marketingData.objective || 'Not Set'}
 - Primary Goal: ${state.marketingData.goal || 'Not Set'}
-${pr.filter(a => a.trim()).map((a, i) => `- Insight #${i + 1}: ${a}`).join('\n')}`
+${l1.length ? '\n[CONCEPTUAL PROBE]\n' + l1.map((q, i) => `Q: ${q}\nA: ${state.marketingData.level1Answers[i] || 'N/A'}`).join('\n') : ''}
+${l2.length ? '\n[PSYCHOLOGICAL PILLARS]\n' + l2.map((q, i) => `Q: ${q}\nA: ${state.marketingData.level2Answers[i] || 'N/A'}`).join('\n') : ''}`
 
   contentContainer.innerHTML = `
     <div class="max-w-3xl mx-auto space-y-6 animate-in fade-in duration-700">
@@ -600,53 +821,189 @@ ${pr.filter(a => a.trim()).map((a, i) => `- Insight #${i + 1}: ${a}`).join('\n')
     state.marketingData.stylePreset = e.target.value
   }
 
-  document.getElementById('proceed-to-studio').onclick = () => {
-    state.marketingData.goal = document.getElementById('config-goal').value
-    switchScreen('Studio')
+  document.getElementById('proceed-to-studio').onclick = async () => {
+    const brief = document.getElementById('config-goal').value
+    state.marketingData.goal = brief
+
+    const btn = document.getElementById('proceed-to-studio')
+    const originalText = btn.innerText
+    btn.innerText = 'SAVING & GENERATING... ⏳'
+    btn.disabled = true
+
+    // The set of variations to be "generated"
+    const variations = [
+      { id: 1, img: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=400', title: 'Minimal Elegance' },
+      { id: 2, img: 'https://images.unsplash.com/photo-1633167606207-d840b5070fc2?auto=format&fit=crop&q=80&w=400', title: 'Neon Kinetic' },
+      { id: 3, img: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=400', title: 'Future Bold' },
+      { id: 4, img: 'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&q=80&w=400', title: 'Abstract Flow' },
+      { id: 5, img: 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?auto=format&fit=crop&q=80&w=400', title: 'Dark Premium' }
+    ]
+
+    try {
+      // 1. Save Campaign Data
+      await fetch(`${API_BASE}/campaigns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brief: brief,
+          preset: state.marketingData.stylePreset,
+          ratio: state.marketingData.aspectRatio,
+          timestamp: new Date().toISOString()
+        })
+      })
+
+      // 2. Save Images to Backend Assets folder
+      for (const v of variations) {
+        await fetch(`${API_BASE}/assets/save-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: v.img,
+            filename: `variation_${v.id}_${Date.now()}`
+          })
+        })
+      }
+
+      console.log('Campaign and assets saved successfully.')
+      switchScreen('Studio')
+    } catch (error) {
+      console.error('Error saving campaign or assets:', error)
+      showNotification('Failed to save data. Proceeding to Studio anyway.', 'error')
+      switchScreen('Studio')
+    } finally {
+      btn.innerText = originalText
+      btn.disabled = false
+    }
   }
 }
 
-function renderStudioScreen() {
-  const variations = [
-    { id: 1, img: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=400', title: 'Minimal Elegance' },
-    { id: 2, img: 'https://images.unsplash.com/photo-1633167606207-d840b5070fc2?auto=format&fit=crop&q=80&w=400', title: 'Neon Kinetic' },
-    { id: 3, img: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?auto=format&fit=crop&q=80&w=400', title: 'Future Bold' },
-    { id: 4, img: 'https://images.unsplash.com/photo-1508739773434-c26b3d09e071?auto=format&fit=crop&q=80&w=400', title: 'Abstract Flow' },
-    { id: 5, img: 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?auto=format&fit=crop&q=80&w=400', title: 'Dark Premium' }
-  ]
-
+async function renderStudioScreen() {
   contentContainer.innerHTML = `
-    <div class="space-y-6">
-        <div class="flex justify-between items-end">
-            <div>
-                <h2 class="text-3xl font-black uppercase tracking-tighter">Creative AI Studio</h2>
-                <p class="text-gray-500 text-sm">AI-generated variations tailored to your campaign strategy</p>
-            </div>
-            <button id="approval-btn" class="px-6 py-2.5 bg-cyan-600 text-white font-bold rounded-lg animate-pulse hover:animate-none hover:shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all uppercase tracking-widest text-xs">
-                Approval
-            </button>
-        </div>
-
-        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            ${variations.map(v => `
-                <div class="group bg-[#151921] border border-[#2A2F3A] rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all">
-                    <div class="aspect-square relative overflow-hidden">
-                        <img src="${v.img}" alt="${v.title}" class="w-full h-full object-cover group-hover:scale-110 transition-all duration-700">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                            <span class="text-[10px] font-bold text-cyan-400 uppercase">${v.title}</span>
-                        </div>
-                    </div>
-                    <div class="p-3 space-y-2">
-                        <button class="w-full py-1.5 bg-gray-800 hover:bg-gray-700 text-[10px] font-bold rounded-md transition-all">EDIT ASSET</button>
-                        <button class="w-full py-1.5 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 text-[10px] font-bold rounded-md transition-all">APPROVE</button>
-                    </div>
-                </div>
-            `).join('')}
-        </div>
+    <div class="flex items-center justify-center h-full">
+      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
     </div>
   `
 
-  document.getElementById('approval-btn').onclick = () => switchScreen('Monitoring')
+  try {
+    const response = await fetch(`${API_BASE}/assets`)
+    if (!response.ok) throw new Error('Failed to fetch assets')
+    const assets = await response.json()
+
+    // Sort assets to show latest first if possible, or just use as is
+    const variations = assets.map(a => ({
+      id: a.name,
+      url: `http://localhost:5243${a.url}`, // Ensure absolute URL
+      title: a.name,
+      type: a.type
+    }))
+
+    contentContainer.innerHTML = `
+      <div class="space-y-6">
+          <div class="flex justify-between items-end">
+              <div>
+                  <h2 class="text-3xl font-black uppercase tracking-tighter">Creative AI Studio</h2>
+                  <p class="text-gray-500 text-sm">AI-generated variations and local assets</p>
+              </div>
+              <button id="approval-btn" class="px-6 py-2.5 bg-cyan-600 text-white font-bold rounded-lg animate-pulse hover:animate-none hover:shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all uppercase tracking-widest text-xs">
+                  Approval
+              </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              ${variations.map(v => `
+                  <div class="group bg-[#151921] border border-[#2A2F3A] rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all flex flex-col">
+                      <div class="aspect-video relative overflow-hidden bg-black flex items-center justify-center">
+                          ${v.type === 'video' ? `
+                              <video src="${v.url}" class="w-full h-full object-contain" controls></video>
+                          ` : `
+                              <img src="${v.url}" alt="${v.title}" class="w-full h-full object-cover group-hover:scale-105 transition-all duration-700">
+                          `}
+                          <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 pointer-events-none">
+                              <span class="text-[10px] font-bold text-cyan-400 uppercase truncate">${v.title}</span>
+                          </div>
+                      </div>
+                      <div class="p-3 space-y-2 mt-auto">
+                          <button class="studio-delete-btn w-full py-1.5 bg-rose-900/50 hover:bg-rose-800 text-rose-400 border border-rose-500/30 text-[10px] font-bold rounded-md transition-all">DELETE</button>
+                          <button class="studio-approve-btn w-full py-1.5 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10 text-[10px] font-bold rounded-md transition-all">APPROVE</button>
+                      </div>
+                  </div>
+              `).join('')}
+              ${variations.length === 0 ? '<p class="col-span-full text-center text-gray-500 py-12">No assets found in backend/Assets folder.</p>' : ''}
+          </div>
+      </div>
+    `
+
+    // List to track which assets were approved in the current session
+    let locallyApproved = []
+
+    // Add click handlers for delete buttons
+    document.querySelectorAll('.studio-delete-btn').forEach((btn, index) => {
+      btn.onclick = async () => {
+        const asset = variations[index];
+        const card = btn.closest('.group');
+
+        try {
+          const res = await fetch(`${API_BASE}/assets/${asset.id}`, {
+            method: 'DELETE'
+          });
+
+          if (res.ok) {
+            card.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+              card.remove();
+            }, 300);
+          } else {
+            showNotification("Failed to delete asset from server.", "error");
+          }
+        } catch (error) {
+          console.error("Error deleting asset:", error);
+          showNotification("Network error while deleting asset.", "error");
+        }
+      }
+    });
+
+    // Add click handlers for the approval logic within each card
+    document.querySelectorAll('.studio-approve-btn').forEach((btn, index) => {
+      btn.onclick = () => {
+        const asset = variations[index]
+        const card = btn.closest('.group')
+        const deleteBtn = card.querySelector('.studio-delete-btn')
+
+        // Track the choice
+        locallyApproved.push(asset)
+
+        // Disable both buttons
+        btn.disabled = true
+        deleteBtn.disabled = true
+
+        // Visual feedback for "Approved" state
+        btn.innerText = 'APPROVED ✓'
+        btn.classList.replace('text-cyan-400', 'text-gray-500')
+        btn.classList.replace('border-cyan-500/30', 'border-gray-700')
+        btn.classList.add('opacity-50', 'cursor-not-allowed')
+        btn.classList.remove('hover:bg-cyan-500/10')
+
+        deleteBtn.classList.add('opacity-30', 'cursor-not-allowed')
+        deleteBtn.classList.remove('hover:bg-rose-800')
+      }
+    })
+
+    document.getElementById('approval-btn').onclick = () => {
+      if (locallyApproved.length === 0) {
+        showNotification('Please approve at least one variation before final submission.', 'error')
+        return
+      }
+
+      // Transfer to CMO dashboard queue
+      state.marketingData.cmoQueue = [...state.marketingData.cmoQueue, ...locallyApproved]
+      saveCmoQueue() // Persist to server
+      showNotification(`SUCCESS: ${locallyApproved.length} asset(s) dispatched to CMO for final review.`)
+      switchScreen('Monitoring')
+    }
+  } catch (error) {
+    console.error('Error rendering studio:', error)
+    contentContainer.innerHTML = `<div class="p-8 text-center text-rose-500 font-bold">Error loading assets: ${error.message}</div>`
+  }
 }
 
 function renderMonitoringScreen() {
@@ -746,11 +1103,11 @@ function renderConfigScreen() {
             <h2 class="text-3xl font-black tracking-tighter uppercase">Social Ecosystem</h2>
             <p class="text-gray-500 text-sm">Manage platforms and credentials</p>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            ${['Facebook', 'Instagram', 'YouTube'].map(p => `
-                <button class="platform-btn group bg-[#151921] border border-[#2A2F3A] p-6 rounded-2xl hover:border-purple-500 hover:bg-purple-500/5 transition-all flex flex-col items-center gap-3">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+            ${['Facebook', 'Instagram', 'YouTube', 'TikTok'].map(p => `
+                <button class="platform-btn group bg-[#151921] border border-[#2A2F3A] p-6 rounded-2xl hover:border-purple-500 hover:bg-purple-500/5 transition-all flex flex-col items-center gap-3" data-platform="${p}">
                     <div class="w-12 h-12 rounded-xl bg-purple-600/20 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
-                        ${p === 'Facebook' ? 'f' : p === 'Instagram' ? '📸' : '▶️'}
+                        ${p === 'Facebook' ? 'f' : p === 'Instagram' ? '📸' : p === 'YouTube' ? '▶️' : '🎵'}
                     </div>
                     <h3 class="font-bold text-lg">${p}</h3>
                 </button>
@@ -758,23 +1115,67 @@ function renderConfigScreen() {
         </div>
     </div>
     <div id="modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
-        <div class="bg-[#151921] w-full max-w-md p-8 rounded-3xl border border-[#2A2F3A] space-y-6">
-            <h3 class="text-2xl font-bold" id="modal-title">Connect Platform</h3>
-            <div class="space-y-4">
-                <input type="text" placeholder="Account Name" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500">
-                <input type="text" placeholder="User ID" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500">
-                <input type="password" placeholder="Password" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500">
-            </div>
-            <button id="modal-save" class="w-full py-3 bg-purple-600 rounded-xl font-bold">SAVE CREDENTIALS</button>
+        <div id="modal-content" class="bg-[#151921] w-full max-w-md p-8 rounded-3xl border border-[#2A2F3A] space-y-6">
+            <!-- Dynamic Content -->
         </div>
     </div>
   `
   const modal = document.getElementById('modal-overlay')
+  const modalContent = document.getElementById('modal-content')
+
   document.querySelectorAll('.platform-btn').forEach(btn => btn.onclick = () => {
-    document.getElementById('modal-title').innerText = `Connect ${btn.querySelector('h3').innerText}`
+    const platform = btn.dataset.platform
+    if (platform === 'TikTok') {
+      const config = state.marketingData.platformConfig.tiktok
+      modalContent.innerHTML = `
+        <h3 class="text-2xl font-bold uppercase italic tracking-tighter text-white">TikTok Business Setup</h3>
+        <p class="text-gray-500 text-[10px] font-medium uppercase tracking-[0.1em] leading-relaxed">Configure your TikTok Business API credentials to enable autonomous campaign orchestration.</p>
+        <div class="space-y-4">
+            <div class="space-y-1">
+                <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Advertiser ID</label>
+                <input type="text" id="tt-adv-id" value="${config.advertiser_id}" placeholder="760097..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white shadow-inner">
+            </div>
+            <div class="space-y-1">
+                <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Access Token</label>
+                <input type="password" id="tt-token" value="${config.access_token}" placeholder="act_..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white shadow-inner">
+            </div>
+            <div class="space-y-1">
+                <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Pixel ID</label>
+                <input type="text" id="tt-pixel" value="${config.pixel_id}" placeholder="PXL_..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white shadow-inner">
+            </div>
+            <div class="space-y-1">
+                <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Identity ID</label>
+                <input type="text" id="tt-identity" value="${config.identity_id}" placeholder="ID_..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white shadow-inner">
+            </div>
+        </div>
+        <div class="pt-4">
+            <button id="modal-save" class="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-black uppercase tracking-widest text-xs transition-all shadow-lg shadow-purple-900/20">SAVE CREDENTIALS</button>
+        </div>
+      `
+      document.getElementById('modal-save').onclick = () => {
+        const c = state.marketingData.platformConfig.tiktok
+        c.advertiser_id = document.getElementById('tt-adv-id').value
+        c.access_token = document.getElementById('tt-token').value
+        c.pixel_id = document.getElementById('tt-pixel').value
+        c.identity_id = document.getElementById('tt-identity').value
+
+        modal.classList.add('hidden')
+        showNotification('TikTok credentials saved and active.', 'success')
+      }
+    } else {
+      modalContent.innerHTML = `
+        <h3 class="text-2xl font-bold uppercase italic tracking-tighter text-white">Connect ${platform}</h3>
+        <p class="text-gray-500 text-[10px] font-medium uppercase tracking-[0.1em]">Credential setup for ${platform} is currently under maintenance.</p>
+        <div class="space-y-4 opacity-30 pointer-events-none">
+            <input type="text" placeholder="Account Name" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none text-sm">
+            <input type="password" placeholder="Key" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none text-sm">
+        </div>
+        <button id="modal-close" class="w-full py-3 bg-gray-800 rounded-xl font-bold uppercase tracking-widest text-[10px] text-gray-400">CLOSE</button>
+      `
+      document.getElementById('modal-close').onclick = () => modal.classList.add('hidden')
+    }
     modal.classList.remove('hidden')
   })
-  document.getElementById('modal-save').onclick = () => modal.classList.add('hidden')
   modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden') }
 }
 
@@ -927,29 +1328,59 @@ function renderGuidelineScreen() {
     })
       .then(async res => {
         if (res.ok) {
-          alert('SUCCESS: Brand guidelines saved to server file.')
+          showNotification('SUCCESS: Brand guidelines saved to server file.')
         } else {
           const err = await res.text()
-          alert('ERROR: Could not save guidelines. ' + err)
+          showNotification('ERROR: Could not save guidelines. ' + err, 'error')
         }
       })
-      .catch(err => alert('NETWORK ERROR: ' + err.message))
+      .catch(err => showNotification('NETWORK ERROR: ' + err.message, 'error'))
   }
 }
 
-function renderAssetsScreen() {
+async function renderAssetsScreen() {
   contentContainer.innerHTML = `
     <div class="space-y-8">
-        <h2 class="text-3xl font-black uppercase italic">Assets Library</h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-            ${Array.from({ length: 12 }).map((_, i) => `
-                <div class="bg-[#151921] border border-[#2A2F3A] rounded-2xl aspect-square overflow-hidden group">
-                    <img src="https://picsum.photos/seed/${i + 300}/200/200" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all">
-                </div>
-            `).join('')}
+        <h2 class="text-3xl font-black uppercase italic tracking-tighter">Assets Library</h2>
+        <div id="library-grid" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+            <div class="col-span-full py-20 text-center animate-pulse text-gray-500 uppercase font-black text-xs tracking-widest">Indexing Library Content...</div>
         </div>
     </div>
   `
+
+  try {
+    const res = await fetch(`${API_BASE}/assets-library`)
+    const assets = await res.json()
+    const grid = document.getElementById('library-grid')
+
+    grid.innerHTML = assets.map(v => {
+      const fullUrl = `http://localhost:5243${v.url}`;
+      return `
+            <div class="bg-[#151921] border border-[#2A2F3A] rounded-2xl aspect-square overflow-hidden group hover:border-purple-500/50 transition-all duration-300 relative">
+                ${v.type === 'video' ? `
+                    <video src="${fullUrl}" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" muted onmouseover="this.play()" onmouseout="this.pause()"></video>
+                ` : `
+                    <img src="${fullUrl}" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700">
+                `}
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 pointer-events-none">
+                    <span class="text-[8px] font-black text-purple-400 uppercase truncate">${v.name}</span>
+                </div>
+            </div>
+        `;
+    }).join('')
+
+    if (assets.length === 0) {
+      grid.innerHTML = `
+        <div class="col-span-full py-20 text-center space-y-4">
+            <span class="text-5xl opacity-20">🗄️</span>
+            <p class="text-gray-500 font-bold uppercase tracking-widest text-[10px]">The Assets Library is currently empty.<br><span class="opacity-50">Approve variations in the Studio to archive them here.</span></p>
+        </div>
+      `
+    }
+  } catch (error) {
+    console.error('Error fetching library:', error)
+    document.getElementById('library-grid').innerHTML = `<div class="col-span-full py-20 text-center text-rose-500 font-bold uppercase text-xs">Error loading library contents.</div>`
+  }
 }
 
 // --- CMO Screens ---
@@ -1080,23 +1511,477 @@ function renderBudgetMatrixScreen() {
 }
 
 function renderApprovalsScreen() {
+  const queue = state.marketingData.cmoQueue
+  const selectedIds = state.marketingData.selectedAssets.map(a => a.id)
+
   contentContainer.innerHTML = `
-    <div class="space-y-6">
-        <h2 class="text-3xl font-black uppercase italic">Pending Sign-off</h2>
-        ${[1, 2, 3].map(i => `
-            <div class="bg-[#151921] p-5 rounded-2xl border border-[#2A2F3A] flex items-center gap-6">
-                <div class="w-20 h-20 bg-gray-800 rounded-xl overflow-hidden">
-                    <img src="https://picsum.photos/seed/${i + 300}/200/200" class="w-full h-full object-cover">
-                </div>
-                <div class="flex-1">
-                    <h4 class="text-lg font-bold">Variation CMO-${i}</h4>
-                    <p class="text-[10px] text-gray-500">Awaiting approval for deployment.</p>
-                </div>
-                <button class="px-6 py-2 bg-amber-600 rounded-lg font-bold text-xs">APPROVE</button>
+    <div class="space-y-6 pb-24">
+        <div class="flex justify-between items-center">
+            <h2 class="text-3xl font-black uppercase italic">Pending Sign-off</h2>
+            <div class="flex items-center gap-4">
+                <span id="selected-count" class="text-indigo-400 font-bold text-[10px] uppercase tracking-widest">${state.marketingData.selectedAssets.length} Selected</span>
+                <span class="bg-amber-600/20 text-amber-500 px-3 py-1 rounded-full text-[10px] font-black border border-amber-500/30 uppercase tracking-widest">${queue.length} Awaiting</span>
             </div>
-        `).join('')}
+        </div>
+        
+        <div id="approvals-list" class="space-y-4">
+            ${queue.length === 0 ? `
+              <div class="bg-[#151921] border border-dashed border-[#2A2F3A] p-20 rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
+                  <span class="text-5xl opacity-20">📥</span>
+                  <p class="text-gray-500 font-bold">No assets pending approval.<br><span class="text-xs font-medium opacity-50 uppercase tracking-tighter">New variations will appear here once approved by the Marketing Expert.</span></p>
+              </div>
+            ` : queue.map((asset, i) => {
+    const isSelected = selectedIds.includes(asset.id)
+    return `
+                    <div class="bg-[#151921] p-5 rounded-2xl border ${isSelected ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.1)]' : 'border-[#2A2F3A]'} flex items-center gap-6 group hover:border-amber-500/30 transition-all">
+                        <div class="w-24 h-24 bg-black rounded-xl overflow-hidden shadow-2xl flex-shrink-0 relative">
+                            ${asset.type === 'video' ? `
+                              <video src="${asset.url}" class="w-full h-full object-cover"></video>
+                            ` : `
+                              <img src="${asset.url}" class="w-full h-full object-cover">
+                            `}
+                            ${isSelected ? `<div class="absolute inset-0 bg-amber-500/20 flex items-center justify-center text-2xl">✓</div>` : ''}
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="text-lg font-black uppercase tracking-tight">${asset.title}</h4>
+                            <p class="text-[10px] text-gray-500 font-medium uppercase tracking-widest">Type: ${asset.type} • ID: ${asset.id.slice(0, 8)}...</p>
+                            <p class="text-[10px] ${isSelected ? 'text-amber-500 font-black' : 'text-amber-500/70'} mt-1 uppercase font-bold italic">
+                                ${isSelected ? 'READY FOR DEPLOYMENT SIGN-OFF' : 'Awaiting final CMO deployment sign-off.'}
+                            </p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="px-5 py-2.5 bg-gray-800 hover:bg-red-900/40 hover:text-red-400 border border-transparent hover:border-red-500/30 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all cmo-reject-btn" data-index="${i}">REJECT</button>
+                            <button class="px-6 py-2.5 ${isSelected ? 'bg-amber-500/10 text-amber-500 border-amber-500' : 'bg-amber-600 hover:bg-amber-500 text-white'} border rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all cmo-toggle-select" data-index="${i}">
+                                ${isSelected ? 'DESELECT' : 'APPROVE'}
+                            </button>
+                        </div>
+                    </div>
+                `
+  }).join('')}
+        </div>
+
+        <!-- Sticky Global POST Button -->
+        <div class="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-sm px-6">
+            <button id="global-post-btn" class="w-full py-5 bg-white text-black font-black rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:bg-amber-500 transition-all scale-100 hover:scale-102 active:scale-95 disabled:opacity-30 disabled:grayscale disabled:scale-100 uppercase tracking-widest text-sm flex items-center justify-center gap-3" ${state.marketingData.selectedAssets.length === 0 ? 'disabled' : ''}>
+                <span>POST TO PLATFORMS</span>
+                <span class="text-lg">⚡</span>
+            </button>
+        </div>
     </div>
   `
+
+  document.querySelectorAll('.cmo-toggle-select').forEach(btn => {
+    btn.onclick = () => {
+      const idx = btn.dataset.index
+      const asset = queue[idx]
+      const existingIdx = state.marketingData.selectedAssets.findIndex(a => a.id === asset.id)
+
+      if (existingIdx > -1) {
+        state.marketingData.selectedAssets.splice(existingIdx, 1)
+      } else {
+        state.marketingData.selectedAssets.push({ ...asset, queueIndex: idx })
+      }
+
+      renderApprovalsScreen()
+    }
+  })
+
+  document.querySelectorAll('.cmo-reject-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const idx = btn.dataset.index
+      const asset = queue[idx]
+
+      // Remove from selected if it was there
+      state.marketingData.selectedAssets = state.marketingData.selectedAssets.filter(a => a.id !== asset.id)
+
+      state.marketingData.cmoQueue.splice(idx, 1)
+      await saveCmoQueue()
+      renderApprovalsScreen()
+      updateUI() // Update badge
+      showNotification('Variation rejected and removed from queue.', 'attention')
+    }
+  })
+
+  document.getElementById('global-post-btn').onclick = () => {
+    if (state.marketingData.selectedAssets.length > 0) {
+      switchScreen('DeploySelection')
+    }
+  }
+}
+
+function renderDeploySelectionScreen() {
+  const assets = state.marketingData.selectedAssets
+
+  if (assets.length === 0) {
+    contentContainer.innerHTML = `
+      <div class="h-full flex flex-col items-center justify-center space-y-6 animate-in fade-in duration-500">
+          <div class="w-24 h-24 bg-amber-500/10 rounded-full flex items-center justify-center border border-amber-500/30">
+              <span class="text-4xl">🎯</span>
+          </div>
+          <div class="text-center space-y-2">
+              <h2 class="text-2xl font-black uppercase italic tracking-tighter">No Assets Selected</h2>
+              <p class="text-gray-500 text-sm max-w-xs mx-auto">Please go to <span class="text-amber-500 font-bold">Ad Approvals</span> and select variations to configure their deployment platforms.</p>
+          </div>
+          <button id="go-to-approvals" class="px-8 py-3 bg-[#151921] border border-[#2A2F3A] hover:border-amber-500/50 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+              Go to Ad Approvals
+          </button>
+      </div>
+    `
+    document.getElementById('go-to-approvals').onclick = () => switchScreen('Approvals')
+    return
+  }
+
+  contentContainer.innerHTML = `
+    <div class="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+        <div class="flex items-center gap-4">
+            <button id="back-to-approvals" class="p-2 hover:bg-gray-800 rounded-lg text-gray-400 transition-colors cursor-pointer">←</button>
+            <div class="flex flex-col">
+              <h2 class="text-3xl font-black uppercase italic tracking-tighter">Platform Selection</h2>
+              <p class="text-indigo-400 text-[10px] font-black uppercase tracking-widest">${assets.length} Variations Selected for Post</p>
+            </div>
+        </div>
+
+        <!-- Selected Assets Scroll -->
+        <div class="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            ${assets.map(asset => `
+                <div class="w-32 flex-shrink-0 space-y-2">
+                    <div class="w-32 h-32 bg-black rounded-xl overflow-hidden border border-white/10">
+                        ${asset.type === 'video' ? `
+                          <video src="${asset.url}" class="w-full h-full object-cover"></video>
+                        ` : `
+                          <img src="${asset.url}" class="w-full h-full object-cover">
+                        `}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+
+        <div class="bg-[#151921] border border-[#2A2F3A] p-8 rounded-3xl shadow-2xl">
+            <h3 class="text-sm font-black text-gray-400 uppercase tracking-widest mb-6">Execution Channels</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                ${['Facebook', 'YouTube', 'TikTok', 'Instagram'].map(platform => `
+                    <button class="platform-select-btn group relative p-6 bg-[#0B0E14] border border-[#2A2F3A] rounded-2xl hover:border-amber-500/50 hover:bg-amber-500/5 transition-all text-left space-y-4 overflow-hidden cursor-pointer" data-platform="${platform}">
+                        <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-30 transition-opacity">
+                            <span class="text-4xl text-white">🔗</span>
+                        </div>
+                        <div class="w-10 h-10 rounded-xl bg-gray-800 flex items-center justify-center group-hover:bg-amber-500/20 transition-colors">
+                            <span class="text-lg">${platform === 'TikTok' ? '🎵' : platform === 'Facebook' ? '👥' : platform === 'YouTube' ? '📺' : '📸'}</span>
+                        </div>
+                        <div>
+                            <p class="text-sm font-black uppercase tracking-tight">${platform}</p>
+                            <p class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Active Link</p>
+                        </div>
+                        <div class="select-indicator absolute top-3 right-3 w-4 h-4 rounded-full border-2 border-[#2A2F3A] group-hover:border-amber-500/50 transition-all shadow-inner"></div>
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center bg-[#151921] border border-[#2A2F3A] p-6 rounded-3xl">
+            <div class="space-y-1">
+                <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Total Estimated Reach</p>
+                <p class="text-xl font-black text-white">~ ${assets.length * 1.5}M <span class="text-gray-600 text-xs">People</span></p>
+            </div>
+            <button id="final-post-btn" class="px-12 py-5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-black rounded-xl shadow-[0_20px_40px_rgba(245,158,11,0.2)] transition-all uppercase tracking-[0.2em] flex items-center gap-3 group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+                Dispatch Multi-Post
+                <span class="text-lg group-hover:translate-x-1 transition-transform">⚡</span>
+            </button>
+        </div>
+    </div>
+  `
+
+  document.getElementById('back-to-approvals').onclick = () => switchScreen('Approvals')
+
+  const platformBtns = document.querySelectorAll('.platform-select-btn')
+  let selectedPlatforms = new Set()
+
+  contentContainer.insertAdjacentHTML('beforeend', `
+    <div id="deploy-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden">
+        <div id="deploy-modal-content" class="bg-[#151921] w-full max-w-lg p-8 rounded-3xl border border-[#2A2F3A] shadow-[0_30px_60px_rgba(0,0,0,0.6)] space-y-6">
+            <!-- Content will be injected -->
+        </div>
+    </div>
+  `)
+
+  const modal = document.getElementById('deploy-modal-overlay')
+  const modalContent = document.getElementById('deploy-modal-content')
+
+  platformBtns.forEach(btn => {
+    btn.onclick = () => {
+      const platform = btn.dataset.platform
+      const indicator = btn.querySelector('.select-indicator')
+
+      if (platform === 'TikTok') {
+        const config = state.marketingData.platformConfig.tiktok
+        modalContent.innerHTML = `
+            <div class="flex flex-col space-y-1 mb-2">
+                <h3 class="text-2xl font-black uppercase italic tracking-tighter text-white">TikTok Dispatch Config</h3>
+                <p class="text-gray-500 text-[10px] font-medium uppercase tracking-widest">Setup parameters for this specific deployment batch.</p>
+            </div>
+            
+            <div class="max-h-[60vh] overflow-y-auto pr-2 space-y-6 custom-scrollbar pb-4">
+                <!-- Group 1: Campaign Context -->
+                <div class="space-y-4">
+                    <h4 class="text-[10px] font-bold text-cyan-400 uppercase tracking-widest border-b border-cyan-500/20 pb-1">Campaign Strategy</h4>
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-gray-500 uppercase">Target Campaign ID</label>
+                        <select id="tt-deploy-camp-id" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-cyan-500 text-xs font-bold text-white">
+                            <option value="">-- CREATE NEW CAMPAIGN --</option>
+                            <option value="CAMP_782394" ${config.campaign_id === 'CAMP_782394' ? 'selected' : ''}>Spring Launch 2026</option>
+                            <option value="CAMP_991023" ${config.campaign_id === 'CAMP_991023' ? 'selected' : ''}>Lead Gen Global</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Budget Mode</label>
+                            <select id="tt-deploy-budget-mode" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-cyan-500 text-xs font-bold text-white">
+                                <option value="BUDGET_MODE_DAILY" ${config.budget_mode === 'BUDGET_MODE_DAILY' ? 'selected' : ''}>Daily</option>
+                                <option value="BUDGET_MODE_TOTAL" ${config.budget_mode === 'BUDGET_MODE_TOTAL' ? 'selected' : ''}>Lifetime</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Daily/Total Budget ($)</label>
+                            <input type="number" id="tt-deploy-budget" value="${config.daily_budget}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-cyan-500 text-sm font-black text-white">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group 2: Ad Group Controls -->
+                <div class="space-y-4">
+                    <h4 class="text-[10px] font-bold text-purple-400 uppercase tracking-widest border-b border-purple-500/20 pb-1">Ad Group Controls</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Placement</label>
+                            <select id="tt-deploy-placement" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
+                                <option value="PLACEMENT_TIKTOK" ${config.placement === 'PLACEMENT_TIKTOK' ? 'selected' : ''}>TikTok Only</option>
+                                <option value="PLACEMENT_PANGLE" ${config.placement === 'PLACEMENT_PANGLE' ? 'selected' : ''}>Pangle Network</option>
+                                <option value="PLACEMENT_ALL" ${config.placement === 'PLACEMENT_ALL' ? 'selected' : ''}>Automatic</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Pacing Mode</label>
+                            <select id="tt-deploy-pacing" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
+                                <option value="PACING_MODE_SMOOTH" ${config.pacing === 'PACING_MODE_SMOOTH' ? 'selected' : ''}>Standard (Smooth)</option>
+                                <option value="PACING_MODE_FAST" ${config.pacing === 'PACING_MODE_FAST' ? 'selected' : ''}>Accelerated</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Bid Type</label>
+                            <select id="tt-deploy-bid-type" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
+                                <option value="BID_TYPE_COST_CAP" ${config.bid_type === 'BID_TYPE_COST_CAP' ? 'selected' : ''}>Cost Cap</option>
+                                <option value="BID_TYPE_LOWEST_COST" ${config.bid_type === 'BID_TYPE_LOWEST_COST' ? 'selected' : ''}>Lowest Cost</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Target Bid ($)</label>
+                            <input type="number" id="tt-deploy-bid" value="${config.bid}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-black text-white">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Start Date</label>
+                            <input type="date" id="tt-deploy-start" value="${config.schedule_start}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">End Date</label>
+                            <input type="date" id="tt-deploy-end" value="${config.schedule_end}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Group 3: Creative Defaults -->
+                <div class="space-y-4">
+                    <h4 class="text-[10px] font-bold text-amber-400 uppercase tracking-widest border-b border-amber-500/20 pb-1">Creative Defaults</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Call To Action</label>
+                            <select id="tt-deploy-cta" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-[11px] font-bold text-white">
+                                <option value="LEARN_MORE" ${config.cta === 'LEARN_MORE' ? 'selected' : ''}>Learn More</option>
+                                <option value="SHOP_NOW" ${config.cta === 'SHOP_NOW' ? 'selected' : ''}>Shop Now</option>
+                                <option value="SIGN_UP" ${config.cta === 'SIGN_UP' ? 'selected' : ''}>Sign Up</option>
+                                <option value="BOOK_NOW" ${config.cta === 'BOOK_NOW' ? 'selected' : ''}>Book Now</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Ad Status</label>
+                            <select id="tt-deploy-status" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-[11px] font-bold text-white">
+                                <option value="ENABLE" ${config.status === 'ENABLE' ? 'selected' : ''}>Active (Enable)</option>
+                                <option value="DISABLE" ${config.status === 'DISABLE' ? 'selected' : ''}>Paused (Disable)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-gray-500 uppercase">Custom Ad Name (Optional)</label>
+                        <input type="text" id="tt-deploy-ad-name" value="${config.custom_ad_name}" placeholder="AI_Campaign_Batch_1" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-xs font-bold text-white">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-gray-500 uppercase">Target Interests (Tags/Keywords)</label>
+                        <input type="text" id="tt-deploy-interests" value="${config.interests}" placeholder="Fashion, Technology, Gaming..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-xs font-bold text-white">
+                    </div>
+                </div>
+
+                <!-- Targeting Brief -->
+                <div class="bg-black/40 p-4 rounded-2xl border border-white/5 space-y-3">
+                    <h4 class="text-[9px] font-bold text-cyan-400 uppercase tracking-widest flex items-center justify-between">
+                        Deployment Mapping Preview <span class="text-xs">⚡</span>
+                    </h4>
+                    <div class="flex flex-wrap gap-2">
+                        ${state.marketingData.targeting.map(t => `<span class="px-3 py-1 bg-cyan-500/10 text-cyan-500 text-[9px] font-black rounded-lg border border-cyan-500/20 uppercase">${t.country} - Age ${t.ageMin}+</span>`).join('')}
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 pt-4 border-t border-[#2A2F3A]">
+                <button id="tt-deploy-cancel" class="py-4 bg-[#1A1F29] hover:bg-[#2A2F3A] text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all">Cancel</button>
+                <button id="tt-deploy-save" class="py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-xl shadow-purple-950/20">Commit & Attach 💾</button>
+            </div>
+        `
+        modal.classList.remove('hidden')
+
+        document.getElementById('tt-deploy-cancel').onclick = () => {
+          modal.classList.add('hidden')
+        }
+
+        document.getElementById('tt-deploy-save').onclick = () => {
+          config.campaign_id = document.getElementById('tt-deploy-camp-id').value
+          config.daily_budget = document.getElementById('tt-deploy-budget').value
+          config.bid = document.getElementById('tt-deploy-bid').value
+          config.schedule_start = document.getElementById('tt-deploy-start').value
+          config.schedule_end = document.getElementById('tt-deploy-end').value
+
+          config.budget_mode = document.getElementById('tt-deploy-budget-mode').value
+          config.placement = document.getElementById('tt-deploy-placement').value
+          config.pacing = document.getElementById('tt-deploy-pacing').value
+          config.bid_type = document.getElementById('tt-deploy-bid-type').value
+          config.cta = document.getElementById('tt-deploy-cta').value
+          config.status = document.getElementById('tt-deploy-status').value
+          config.custom_ad_name = document.getElementById('tt-deploy-ad-name').value
+          config.interests = document.getElementById('tt-deploy-interests').value
+
+          selectedPlatforms.add('TikTok')
+          btn.classList.add('border-amber-500', 'bg-amber-500/5')
+          indicator.classList.add('bg-amber-500', 'border-amber-500')
+
+          modal.classList.add('hidden')
+          showNotification('Advanced TikTok parameters attached to batch.', 'success')
+        }
+      } else {
+        // Standard toggle for other platforms
+        if (selectedPlatforms.has(platform)) {
+          selectedPlatforms.delete(platform)
+          btn.classList.remove('border-amber-500', 'bg-amber-500/5')
+          indicator.classList.remove('bg-amber-500', 'border-amber-500')
+        } else {
+          selectedPlatforms.add(platform)
+          btn.classList.add('border-amber-500', 'bg-amber-500/5')
+          indicator.classList.add('bg-amber-500', 'border-amber-500')
+        }
+      }
+    }
+  })
+
+  document.getElementById('final-post-btn').onclick = async () => {
+    const btn = document.getElementById('final-post-btn')
+
+    if (selectedPlatforms.size === 0) {
+      showNotification('REQUIRED: Please select at least one platform.', 'error')
+      return
+    }
+
+    // 1. TikTok Payload Inspection (Step 39 Requirement)
+    if (selectedPlatforms.has('TikTok')) {
+      const sampleAsset = assets[0]
+      const previewPayload = await deployToTikTok(sampleAsset, API_BASE, state, true)
+
+      modalContent.innerHTML = `
+        <div class="flex flex-col space-y-1 mb-4">
+            <h3 class="text-2xl font-black uppercase italic tracking-tighter text-amber-500">Payload Inspection 🔍</h3>
+            <p class="text-gray-500 text-[10px] font-medium uppercase tracking-widest">Verify the TikTok API data structure before final dispatch.</p>
+        </div>
+
+        <div class="bg-black/60 rounded-2xl p-4 border border-white/5 overflow-hidden">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-[9px] font-black text-gray-500 uppercase">JSON Manifest (${sampleAsset.id.slice(0, 8)})</span>
+                <span class="text-[8px] px-2 py-0.5 bg-amber-500/10 text-amber-500 rounded uppercase font-bold border border-amber-500/20">Preview Mode</span>
+            </div>
+            <pre class="text-[10px] text-cyan-400 font-mono h-[40vh] overflow-y-auto custom-scrollbar leading-relaxed">
+${JSON.stringify(previewPayload, null, 2)}
+            </pre>
+        </div>
+
+        <div class="space-y-3 pt-2">
+            <p class="text-[9px] text-gray-400 italic text-center uppercase tracking-widest leading-relaxed">
+                By clicking "Initiate Batch Post", you agree to deploy ${assets.length} variations with the parameters defined above.
+            </p>
+            <div class="grid grid-cols-2 gap-4">
+                <button id="cancel-preview" class="py-4 bg-[#1A1F29] hover:bg-[#2A2F3A] text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all">Back to Config</button>
+                <button id="confirm-dispatch" class="py-4 bg-amber-500 hover:bg-amber-400 text-black rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-xl shadow-amber-950/20 flex items-center justify-center gap-2">Initiate Batch Post 🚀</button>
+            </div>
+        </div>
+      `
+      modal.classList.remove('hidden')
+
+      document.getElementById('cancel-preview').onclick = () => modal.classList.add('hidden')
+      document.getElementById('confirm-dispatch').onclick = async () => {
+        modal.classList.add('hidden')
+        executeActualDispatch()
+      }
+      return
+    }
+
+    // Direct dispatch if TikTok not selected
+    executeActualDispatch()
+
+    async function executeActualDispatch() {
+      btn.innerHTML = 'DISPATCHING TO NETWORK... ⚡'
+      btn.disabled = true
+
+      try {
+        for (const asset of assets) {
+          // 1. Save to Library (Permanent Storage)
+          try {
+            await fetch(`${API_BASE}/assets/approve`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ filename: asset.id })
+            })
+          } catch (err) {
+            console.warn(`Library archive failed for ${asset.id}, continuing...`)
+          }
+
+          // 2. Deploy to TikTok if selected
+          if (selectedPlatforms.has('TikTok')) {
+            try {
+              await deployToTikTok(asset, API_BASE, state)
+            } catch (err) {
+              console.error(`TikTok deployment failed for ${asset.id}`)
+            }
+          }
+
+          // 3. Remove from Queue
+          state.marketingData.cmoQueue = state.marketingData.cmoQueue.filter(a => a.id !== asset.id)
+        }
+
+        await saveCmoQueue()
+        state.marketingData.selectedAssets = [] // Cleanup
+
+        showNotification(`${assets.length} Variations successfully deployed across ${selectedPlatforms.size} platforms.`, 'success')
+
+        setTimeout(() => {
+          switchScreen('Approvals')
+          updateUI()
+        }, 2000)
+
+      } catch (e) {
+        console.error(e)
+        showNotification('Critical Error during bulk deployment.', 'error')
+        btn.innerHTML = 'RETRY DISPATCH ⚡'
+        btn.disabled = false
+      }
+    }
+  }
 }
 
 function renderNotificationsScreen() {
@@ -1143,6 +2028,14 @@ async function initApp() {
       console.log('✓ Guidelines loaded from server storage.')
     } else {
       console.log('ℹ No existing guidelines file found on server. Starting fresh.')
+    }
+
+    // Load CMO Queue
+    const cmoRes = await fetch(`${API_BASE}/cmo/queue`)
+    if (cmoRes.ok) {
+      const cmoData = await cmoRes.json()
+      state.marketingData.cmoQueue = cmoData || []
+      console.log(`✓ Loaded ${state.marketingData.cmoQueue.length} pending items for CMO.`)
     }
   } catch (e) {
     console.warn('⚠ Backend storage service offline. Using local session memory only.')
