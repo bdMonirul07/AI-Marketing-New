@@ -218,3 +218,64 @@
 - [x] **Step 36: Granular Targeting Bridge**
   - Map specific `ageMin/Max`, `gender`, and `country` from `state.marketingData.targeting` to TikTok API constants (e.g., `AGE_18_24`, `GENDER_MALE`).
   - Pass the first available targeting set from the Marketing Suite to the `deployToTikTok` function.
+
+## PPC Specialist Workflow & Asset Management
+
+- [ ] **Step 41: Implement "Approved Assets" for PPC Specialist**
+  - Create a new screen `ApprovedAssets` exclusively for the **PPC Specialist** role.
+  - Update the **CMO Dashboard** "Approve" logic: When an asset is approved, it should now be added to the PPC Specialist's "Approved Assets" queue.
+  - Design the `ApprovedAssets` screen to display these items, allowing the PPC Specialist to manage/deploy them.
+
+- [x] **Step 42: Refine PPC Specialist Navigation & Screens**
+  - Remove "Campaign Objective" and "Target Audience" tabs/screens from the PPC Specialist role.
+  - Reorder the sidebar navigation for PPC Specialist to:
+    1. Approved Assets
+    2. Platform Selection
+    3. AI Monitoring
+    4. Budget Overview
+
+- [x] **Step 43: Remove Platform Selection from CMO Dashboard**
+  - Remove the "Platform Selection" screen/tab from the `CMO` role definition in `main.js`.
+  - Since deployment is now handled by the PPC Specialist, the CMO no longer needs access to this hub.
+
+- [x] **Step 44: Add AI Monitoring and Budget Overview to CMO Dashboard**
+  - Update the `CMO` role definition in `main.js` to include the following screens:
+    1. `Monitoring` (AI Monitoring)
+    2. `Budget` (Budget Overview)
+  - This provides the CMO with comprehensive visibility into performance and expenditures.
+
+- [x] **Step 45: Reorder Role Identities**
+  - Reorder the roles in `main.js` and `index.html` to follow this sequence:
+    1. Platform Admin
+    2. CMO Dashboard
+    3. PPC Specialist
+    4. Marketing Expert
+
+- [x] **Step 46: Remove Monitoring/Budget from Marketing Expert**
+  - Remove the "AI Monitoring" and "Budget Overview" screens from the `Expert` role definition in `main.js`.
+  - The Marketing Expert now focuses purely on creative strategy and asset generation.
+
+- [x] **Step 47: Implement "Role Management" for Platform Admin**
+  - Add a new screen/tab `RoleManagement` to the `Admin` role in `main.js`.
+  - Design and implement the `renderRoleManagementScreen` function to allow the admin to manage user roles and permissions.
+
+- [x] **Step 48: Integrate Granular Targeting into TikTok Dispatch**
+  - Update `state.marketingData.platformConfig.tiktok` to include: `country`, `language`, `area`, `ageMin`, `ageMax`, and `gender`.
+  - Add UI controls for these parameters in the TikTok Dispatch Configuration modal.
+  - Map these parameters in `tiktokDeploy.js` to the corresponding TikTok API fields (`location_ids`, `languages`, `age_groups`, `gender`).
+
+- [x] **Step 49: Integrate Landing URL into TikTok Dispatch**
+  - Add `landing_url` to `state.marketingData.platformConfig.tiktok`.
+  - Add URL input field to the TikTok Dispatch Config modal.
+  - Link `landing_url` in `tiktokDeploy.js` to the ad creative payload.
+
+- [x] **Step 50: Enhance Date Picker Visibility**
+  - Styled the `input[type="date"]` with `filter: invert(1)` for the calendar indicator.
+  - Added `color-scheme: dark` to ensure browser-native pickers match the dark theme.
+  - Refined input borders for higher contrast.
+
+- [x] **Step 51: Implement Company Profile Screen**
+  - Added `companyProfile` data structure to the application state.
+  - Integrated "Company Profile" tab into the Platform Admin sidebar.
+  - Designed the Corporate Identity UI with Primary Information, Strategic Narrative, and Social Ecosystem sections.
+  - Implemented persistence logic to save company data to the state.

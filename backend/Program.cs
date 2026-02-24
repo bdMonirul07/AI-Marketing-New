@@ -4,6 +4,7 @@ using System.Text.Json;
 const string GuidelinesFile = "brand_guidelines.json";
 const string CampaignsFile = "campaigns.json";
 const string CmoQueueFile = "cmo_queue.json";
+const string PpcQueueFile = "ppc_queue.json";
 const string AssetsFolder = "Assets";
 const string LibraryFolder = "Assets Library";
 
@@ -116,6 +117,24 @@ app.MapPost("/api/cmo/queue", async (HttpRequest request) =>
     using var reader = new StreamReader(request.Body);
     var json = await reader.ReadToEndAsync();
     await File.WriteAllTextAsync(CmoQueueFile, json);
+    return Results.Ok();
+});
+
+app.MapGet("/api/ppc/queue", async () =>
+{
+    if (!File.Exists(PpcQueueFile))
+    {
+        return Results.Ok(new List<object>());
+    }
+    var json = await File.ReadAllTextAsync(PpcQueueFile);
+    return Results.Text(json, "application/json");
+});
+
+app.MapPost("/api/ppc/queue", async (HttpRequest request) =>
+{
+    using var reader = new StreamReader(request.Body);
+    var json = await reader.ReadToEndAsync();
+    await File.WriteAllTextAsync(PpcQueueFile, json);
     return Results.Ok();
 });
 

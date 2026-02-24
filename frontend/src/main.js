@@ -46,6 +46,7 @@ const state = {
       sales: 25
     },
     cmoQueue: [],
+    ppcQueue: [],
     selectedAssets: [],
     platformConfig: {
       tiktok: {
@@ -63,10 +64,33 @@ const state = {
         budget_mode: 'BUDGET_MODE_DAILY',
         pacing: 'PACING_MODE_SMOOTH',
         bid_type: 'BID_TYPE_COST_CAP',
-        status: 'ENABLE',
         cta: 'LEARN_MORE',
         custom_ad_name: '',
-        interests: ''
+        interests: '',
+        country: 'US',
+        language: 'en',
+        area: '',
+        ageMin: 18,
+        ageMax: 65,
+        gender: 'GENDER_ANY',
+        landing_url: ''
+      }
+    },
+    companyProfile: {
+      name: '',
+      industry: '',
+      website: '',
+      location: '',
+      employeeCount: '',
+      foundingYear: '',
+      about: '',
+      mission: '',
+      vision: '',
+      socialLinks: {
+        facebook: '',
+        instagram: '',
+        linkedin: '',
+        twitter: ''
       }
     }
   }
@@ -74,26 +98,14 @@ const state = {
 
 // --- Role Definitions ---
 const roles = {
-  Expert: {
-    displayName: 'Marketing Expert',
-    icon: 'E',
-    themeColor: 'cyan',
-    screens: [
-      { id: 'Objective', label: 'Campaign Objective', icon: '🎯' },
-      { id: 'Targeting', label: 'Target Audience', icon: '👥' },
-      { id: 'Research', label: 'Strategy Hub', icon: '🧠' },
-      { id: 'CreativeConfig', label: 'Creative Config', icon: '🎬' },
-      { id: 'Studio', label: 'Creative Studio', icon: '🎨' },
-      { id: 'Monitoring', label: 'AI Monitoring', icon: '📊' },
-      { id: 'Budget', label: 'Budget Overview', icon: '💰' },
-    ]
-  },
   Admin: {
     displayName: 'Platform Admin',
     icon: 'A',
     themeColor: 'purple',
     screens: [
       { id: 'Config', label: 'Platform Config', icon: '⚙️' },
+      { id: 'CompanyProfile', label: 'Company Profile', icon: '🏢' },
+      { id: 'RoleManagement', label: 'Role Management', icon: '👤' },
       { id: 'Calendar', label: 'Global Calendar', icon: '📅' },
       { id: 'Guideline', label: 'Brand Guideline', icon: '📜' },
       { id: 'Assets', label: 'Creative Assets', icon: '🖼️' },
@@ -106,8 +118,32 @@ const roles = {
     screens: [
       { id: 'BudgetMatrix', label: 'Budget & Matrix', icon: '📈' },
       { id: 'Approvals', label: 'Ad Approvals', icon: '✅' },
-      { id: 'DeploySelection', label: 'Platform Selection', icon: '🎯' },
+      { id: 'Monitoring', label: 'AI Monitoring', icon: '📊' },
+      { id: 'Budget', label: 'Budget Overview', icon: '💰' },
       { id: 'Notifications', label: 'Notifications', icon: '🔔' },
+    ]
+  },
+  PPC: {
+    displayName: 'PPC Specialist',
+    icon: 'P',
+    themeColor: 'emerald',
+    screens: [
+      { id: 'ApprovedAssets', label: 'Approved Assets', icon: '✅' },
+      { id: 'DeploySelection', label: 'Platform Selection', icon: '🎯' },
+      { id: 'Monitoring', label: 'AI Monitoring', icon: '📊' },
+      { id: 'Budget', label: 'Budget Overview', icon: '💰' },
+    ]
+  },
+  Expert: {
+    displayName: 'Marketing Expert',
+    icon: 'E',
+    themeColor: 'cyan',
+    screens: [
+      { id: 'Objective', label: 'Campaign Objective', icon: '🎯' },
+      { id: 'Targeting', label: 'Target Audience', icon: '👥' },
+      { id: 'Research', label: 'Strategy Hub', icon: '🧠' },
+      { id: 'CreativeConfig', label: 'Creative Config', icon: '🎬' },
+      { id: 'Studio', label: 'Creative Studio', icon: '🎨' },
     ]
   }
 }
@@ -218,6 +254,19 @@ async function saveCmoQueue() {
   }
 }
 
+async function savePpcQueue() {
+  try {
+    await fetch(`${API_BASE}/ppc/queue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(state.marketingData.ppcQueue)
+    })
+    console.log('✓ PPC Queue synced to server.')
+  } catch (e) {
+    console.warn('⚠ Could not sync PPC Queue to server.')
+  }
+}
+
 // --- UI Rendering ---
 function updateUI() {
   const currentRole = roles[state.activeRole]
@@ -281,9 +330,18 @@ function renderScreen(screenId) {
     case 'Budget':
       renderBudgetScreen()
       break
+    case 'ApprovedAssets':
+      renderApprovedAssetsScreen()
+      break
     // Admin Screens
     case 'Config':
       renderConfigScreen()
+      break
+    case 'RoleManagement':
+      renderRoleManagementScreen()
+      break
+    case 'CompanyProfile':
+      renderCompanyProfileScreen()
       break
     case 'Calendar':
       renderCalendarScreen()
@@ -1179,6 +1237,258 @@ function renderConfigScreen() {
   modal.onclick = (e) => { if (e.target === modal) modal.classList.add('hidden') }
 }
 
+function renderCompanyProfileScreen() {
+  const profile = state.marketingData.companyProfile
+  contentContainer.innerHTML = `
+    <div class="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-3xl font-black uppercase italic tracking-tighter">Company <span class="text-purple-500">Corporate Identity</span></h2>
+                <p class="text-gray-500 text-xs uppercase tracking-widest font-bold mt-1">Foundational data for AI strategy alignment</p>
+            </div>
+            <button id="save-profile-btn" class="px-8 py-3 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg transition-all flex items-center gap-2 group">
+                <span>COMMIT PROFILE</span>
+                <span class="text-lg group-hover:scale-110 transition-transform">💾</span>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <!-- Left Column: Core Info -->
+            <div class="md:col-span-2 space-y-6">
+                <!-- Basic Info Card -->
+                <div class="bg-[#151921] border border-[#2A2F3A] p-8 rounded-3xl space-y-6">
+                    <h4 class="text-[10px] font-black text-purple-400 uppercase tracking-[0.2em] border-b border-purple-500/20 pb-2">Primary Information</h4>
+                    
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Company Name</label>
+                            <input type="text" id="cp-name" value="${profile.name}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Industry / Niche</label>
+                            <input type="text" id="cp-industry" value="${profile.industry}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Official Website</label>
+                            <input type="text" id="cp-website" value="${profile.website}" placeholder="https://..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">HQ Location</label>
+                            <input type="text" id="cp-location" value="${profile.location}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Employee Count</label>
+                            <select id="cp-employees" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
+                                <option value="1-10" ${profile.employeeCount === '1-10' ? 'selected' : ''}>1-10 (Startup)</option>
+                                <option value="11-50" ${profile.employeeCount === '11-50' ? 'selected' : ''}>11-50 (SME)</option>
+                                <option value="51-200" ${profile.employeeCount === '51-200' ? 'selected' : ''}>51-200 (Growth)</option>
+                                <option value="200+" ${profile.employeeCount === '200+' ? 'selected' : ''}>200+ (Enterprise)</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Founding Year</label>
+                            <input type="number" id="cp-founding" value="${profile.foundingYear}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Strategic Narrative Card -->
+                <div class="bg-[#151921] border border-[#2A2F3A] p-8 rounded-3xl space-y-6">
+                    <h4 class="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] border-b border-emerald-500/20 pb-2">Strategic Narrative</h4>
+                    
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-gray-500 uppercase">About the Company</label>
+                        <textarea id="cp-about" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-2xl outline-none focus:border-emerald-500 text-sm font-medium text-gray-300 min-h-[120px] transition-all" placeholder="Describe your company's core values...">${profile.about}</textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Mission Statement</label>
+                            <textarea id="cp-mission" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-2xl outline-none focus:border-emerald-500 text-sm font-medium text-gray-300 min-h-[80px] transition-all">${profile.mission}</textarea>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Vision Statement</label>
+                            <textarea id="cp-vision" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-2xl outline-none focus:border-emerald-500 text-sm font-medium text-gray-300 min-h-[80px] transition-all">${profile.vision}</textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Social & Presence -->
+            <div class="space-y-6">
+                <div class="bg-[#151921] border border-[#2A2F3A] p-8 rounded-3xl space-y-6 sticky top-8">
+                    <h4 class="text-[10px] font-black text-cyan-400 uppercase tracking-[0.2em] border-b border-cyan-500/20 pb-2">Social Ecosystem</h4>
+                    
+                    <div class="space-y-4">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase flex items-center gap-2">
+                                <span class="w-4 h-4 bg-[#1877F2]/20 rounded flex items-center justify-center text-[#1877F2]">f</span>
+                                Facebook Page
+                            </label>
+                            <input type="text" id="cp-fb" value="${profile.socialLinks.facebook}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-[#1877F2] text-xs font-bold text-white transition-all">
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase flex items-center gap-2">
+                                <span class="w-4 h-4 bg-[#E4405F]/20 rounded flex items-center justify-center text-[#E4405F]">i</span>
+                                Instagram Handle
+                            </label>
+                            <input type="text" id="cp-ig" value="${profile.socialLinks.instagram}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-[#E4405F] text-xs font-bold text-white transition-all">
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase flex items-center gap-2">
+                                <span class="w-4 h-4 bg-[#0A66C2]/20 rounded flex items-center justify-center text-[#0A66C2]">in</span>
+                                LinkedIn Profile
+                            </label>
+                            <input type="text" id="cp-li" value="${profile.socialLinks.linkedin}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-[#0A66C2] text-xs font-bold text-white transition-all">
+                        </div>
+
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase flex items-center gap-2">
+                                <span class="w-4 h-4 bg-[#1DA1F2]/20 rounded flex items-center justify-center text-[#1DA1F2]">t</span>
+                                Twitter / X
+                            </label>
+                            <input type="text" id="cp-tw" value="${profile.socialLinks.twitter}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-[#1DA1F2] text-xs font-bold text-white transition-all">
+                        </div>
+                    </div>
+
+                    <!-- Profile Completeness Mockup -->
+                    <div class="pt-6 border-t border-[#2A2F3A] space-y-3">
+                        <div class="flex justify-between items-center text-[8px] font-black uppercase tracking-widest">
+                            <span class="text-gray-500">Profile Completeness</span>
+                            <span class="text-purple-500">75%</span>
+                        </div>
+                        <div class="h-1.5 w-full bg-[#0B0E14] rounded-full overflow-hidden">
+                            <div class="h-full bg-gradient-to-r from-purple-600 to-cyan-500 w-[75%] rounded-full shadow-[0_0_10px_rgba(147,51,234,0.3)]"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+  `
+
+  document.getElementById('save-profile-btn').onclick = () => {
+    profile.name = document.getElementById('cp-name').value
+    profile.industry = document.getElementById('cp-industry').value
+    profile.website = document.getElementById('cp-website').value
+    profile.location = document.getElementById('cp-location').value
+    profile.employeeCount = document.getElementById('cp-employees').value
+    profile.foundingYear = document.getElementById('cp-founding').value
+    profile.about = document.getElementById('cp-about').value
+    profile.mission = document.getElementById('cp-mission').value
+    profile.vision = document.getElementById('cp-vision').value
+    profile.socialLinks.facebook = document.getElementById('cp-fb').value
+    profile.socialLinks.instagram = document.getElementById('cp-ig').value
+    profile.socialLinks.linkedin = document.getElementById('cp-li').value
+    profile.socialLinks.twitter = document.getElementById('cp-tw').value
+
+    showNotification('Company Corporate Identity updated successfully.', 'success')
+    renderCompanyProfileScreen()
+  }
+}
+
+function renderRoleManagementScreen() {
+  const roleStats = Object.keys(roles).map(id => ({
+    id,
+    ...roles[id],
+    userCount: Math.floor(Math.random() * 5) + 1 // Simulated for UI
+  }))
+
+  contentContainer.innerHTML = `
+    <div class="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-3xl font-black uppercase italic tracking-tighter">Identity <span class="text-purple-500">Access Control</span></h2>
+                <p class="text-gray-500 text-xs uppercase tracking-widest font-bold mt-1">Manage platform roles and permission tokens</p>
+            </div>
+            <button class="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg transition-all flex items-center gap-2">
+                <span>ADD NEW SEAT</span>
+                <span class="text-lg">+</span>
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            ${roleStats.map(role => `
+                <div class="bg-[#151921] border border-[#2A2F3A] p-6 rounded-3xl hover:border-purple-500/30 transition-all group relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-all"></div>
+                    
+                    <div class="flex items-start justify-between relative z-10">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-2xl bg-${role.themeColor}-900/30 border border-${role.themeColor}-500/30 flex items-center justify-center text-${role.themeColor}-400 font-black text-xl shadow-inner">
+                                ${role.icon}
+                            </div>
+                            <div>
+                                <h4 class="text-lg font-black uppercase tracking-tight">${role.displayName}</h4>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span class="text-[10px] text-gray-400 font-black uppercase tracking-widest">${role.userCount} Active Users</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="p-2 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-white transition-all">⚙️</button>
+                            <button class="p-2 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-rose-500 transition-all">🔒</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 space-y-3 relative z-10">
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Enabled Modules</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${role.screens.map(screen => `
+                                <span class="px-3 py-1 bg-[#0B0E14] border border-[#1F2430] rounded-full text-[9px] font-black text-gray-400 uppercase tracking-tighter flex items-center gap-1.5">
+                                    <span>${screen.icon}</span>
+                                    <span>${screen.label}</span>
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-[#1F2430] flex justify-between items-center relative z-10">
+                        <div class="flex -space-x-2">
+                            ${Array(role.userCount).fill(0).map((_, i) => `
+                                <div class="w-8 h-8 rounded-full border-2 border-[#151921] bg-gray-800 flex items-center justify-center text-[10px] font-black uppercase overflow-hidden">
+                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${role.id}${i}" class="w-full h-full object-cover">
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button class="text-[10px] font-black text-purple-400 hover:text-purple-300 uppercase tracking-widest transition-all">Manage Permissions →</button>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+
+        <!-- System Logs / Security Preview -->
+        <div class="bg-[#151921] border border-dashed border-[#2A2F3A] p-8 rounded-3xl">
+            <h3 class="text-sm font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+                <span class="text-purple-500">🛡️</span> Security Access Logs
+            </h3>
+            <div class="space-y-4">
+                ${[1, 2, 3].map(i => `
+                    <div class="flex items-center justify-between py-3 border-b border-[#1F2430] last:border-0 border-dashed">
+                        <div class="flex items-center gap-4">
+                            <div class="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 text-xs">✓</div>
+                            <div>
+                                <p class="text-[11px] font-bold text-gray-200">Role Elevation Authorized: <span class="text-purple-400">${['PPC Specialist', 'CMO Dashboard', 'Marketing Expert'][i - 1]}</span></p>
+                                <p class="text-[9px] text-gray-500 uppercase tracking-widest">User ID: system_auth_882${i} • 24 Feb 2026, 11:55 AM</p>
+                            </div>
+                        </div>
+                        <span class="text-[9px] font-black text-gray-600 tracking-tighter">IP: 192.168.1.10${i}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    </div>
+  `
+}
+
 function renderCalendarScreen() {
   contentContainer.innerHTML = `
     <div class="h-full flex flex-col space-y-6">
@@ -1560,11 +1870,11 @@ function renderApprovalsScreen() {
   }).join('')}
         </div>
 
-        <!-- Sticky Global POST Button -->
+        <!-- Authorization Button for PPC -->
         <div class="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-sm px-6">
-            <button id="global-post-btn" class="w-full py-5 bg-white text-black font-black rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:bg-amber-500 transition-all scale-100 hover:scale-102 active:scale-95 disabled:opacity-30 disabled:grayscale disabled:scale-100 uppercase tracking-widest text-sm flex items-center justify-center gap-3" ${state.marketingData.selectedAssets.length === 0 ? 'disabled' : ''}>
-                <span>POST TO PLATFORMS</span>
-                <span class="text-lg">⚡</span>
+            <button id="authorize-ppc-btn" class="w-full py-5 bg-white text-black font-black rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:bg-emerald-500 hover:text-white transition-all scale-100 hover:scale-102 active:scale-95 disabled:opacity-30 disabled:grayscale disabled:scale-100 uppercase tracking-widest text-sm flex items-center justify-center gap-3" ${state.marketingData.selectedAssets.length === 0 ? 'disabled' : ''}>
+                <span>AUTHORIZE FOR PPC DISPATCH</span>
+                <span class="text-lg">✅</span>
             </button>
         </div>
     </div>
@@ -1602,7 +1912,106 @@ function renderApprovalsScreen() {
     }
   })
 
-  document.getElementById('global-post-btn').onclick = () => {
+  document.getElementById('authorize-ppc-btn').onclick = async () => {
+    const selected = state.marketingData.selectedAssets
+    if (selected.length > 0) {
+      // Move to PPC Queue
+      state.marketingData.ppcQueue.push(...selected)
+
+      // Remove from CMO Queue
+      const selectedIds = new Set(selected.map(a => a.id))
+      state.marketingData.cmoQueue = state.marketingData.cmoQueue.filter(a => !selectedIds.has(a.id))
+
+      // Clear selection
+      state.marketingData.selectedAssets = []
+
+      // Sync with server
+      await saveCmoQueue()
+      await savePpcQueue()
+
+      showNotification(`${selected.length} Variations authorized for PPC specialist.`, 'success')
+      renderApprovalsScreen()
+      updateUI()
+    }
+  }
+}
+
+function renderApprovedAssetsScreen() {
+  const queue = state.marketingData.ppcQueue
+  const selectedIds = state.marketingData.selectedAssets.map(a => a.id)
+
+  contentContainer.innerHTML = `
+    <div class="space-y-6 pb-24">
+        <div class="flex justify-between items-center">
+            <h2 class="text-3xl font-black uppercase italic tracking-tighter text-emerald-400">Approved <span class="text-white">Assets</span></h2>
+            <div class="flex items-center gap-4">
+                <span id="selected-count" class="text-indigo-400 font-bold text-[10px] uppercase tracking-widest">${state.marketingData.selectedAssets.length} Selected</span>
+                <span class="bg-emerald-600/20 text-emerald-500 px-3 py-1 rounded-full text-[10px] font-black border border-emerald-500/30 uppercase tracking-widest">${queue.length} Ready</span>
+            </div>
+        </div>
+        
+        <div id="approvals-list" class="space-y-4">
+            ${queue.length === 0 ? `
+              <div class="bg-[#151921] border border-dashed border-[#2A2F3A] p-20 rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
+                  <span class="text-5xl opacity-20">✅</span>
+                  <p class="text-gray-500 font-bold">No approved assets available.<br><span class="text-xs font-medium opacity-50 uppercase tracking-tighter">Variations will appear here once authorized by the CMO.</span></p>
+              </div>
+            ` : queue.map((asset, i) => {
+    const isSelected = selectedIds.includes(asset.id)
+    return `
+                    <div class="bg-[#151921] p-5 rounded-2xl border ${isSelected ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.1)]' : 'border-[#2A2F3A]'} flex items-center gap-6 group hover:border-emerald-500/30 transition-all">
+                        <div class="w-24 h-24 bg-black rounded-xl overflow-hidden shadow-2xl flex-shrink-0 relative">
+                            ${asset.type === 'video' ? `
+                              <video src="${asset.url}" class="w-full h-full object-cover"></video>
+                            ` : `
+                              <img src="${asset.url}" class="w-full h-full object-cover">
+                            `}
+                            ${isSelected ? `<div class="absolute inset-0 bg-emerald-500/20 flex items-center justify-center text-2xl text-white">✓</div>` : ''}
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="text-lg font-black uppercase tracking-tight">${asset.title}</h4>
+                            <p class="text-[10px] text-gray-500 font-medium uppercase tracking-widest">Type: ${asset.type} • ID: ${asset.id.slice(0, 8)}...</p>
+                            <p class="text-[10px] ${isSelected ? 'text-emerald-500 font-black' : 'text-emerald-500/70'} mt-1 uppercase font-bold italic">
+                                ${isSelected ? 'QUEUED FOR DEPLOYMENT' : 'Authorized for final network dispatch.'}
+                            </p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="px-6 py-2.5 ${isSelected ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500' : 'bg-emerald-600 hover:bg-emerald-500 text-white'} border rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg transition-all ppc-toggle-select" data-index="${i}">
+                                ${isSelected ? 'DESELECT' : 'SELECT FOR POST'}
+                            </button>
+                        </div>
+                    </div>
+                `
+  }).join('')}
+        </div>
+
+        <!-- Sticky Global POST Button -->
+        <div class="fixed bottom-10 left-1/2 -translate-x-1/2 w-full max-w-sm px-6">
+            <button id="ppc-post-btn" class="w-full py-5 bg-white text-black font-black rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.4)] hover:bg-emerald-500 hover:text-white transition-all scale-100 hover:scale-102 active:scale-95 disabled:opacity-30 disabled:grayscale disabled:scale-100 uppercase tracking-widest text-sm flex items-center justify-center gap-3" ${state.marketingData.selectedAssets.length === 0 ? 'disabled' : ''}>
+                <span>GO TO DISPATCH HUB</span>
+                <span class="text-lg">⚡</span>
+            </button>
+        </div>
+    </div>
+  `
+
+  document.querySelectorAll('.ppc-toggle-select').forEach(btn => {
+    btn.onclick = () => {
+      const idx = btn.dataset.index
+      const asset = queue[idx]
+      const existingIdx = state.marketingData.selectedAssets.findIndex(a => a.id === asset.id)
+
+      if (existingIdx > -1) {
+        state.marketingData.selectedAssets.splice(existingIdx, 1)
+      } else {
+        state.marketingData.selectedAssets.push({ ...asset })
+      }
+
+      renderApprovedAssetsScreen()
+    }
+  })
+
+  document.getElementById('ppc-post-btn').onclick = () => {
     if (state.marketingData.selectedAssets.length > 0) {
       switchScreen('DeploySelection')
     }
@@ -1794,6 +2203,10 @@ function renderDeploySelectionScreen() {
                 <!-- Group 3: Creative Defaults -->
                 <div class="space-y-4">
                     <h4 class="text-[10px] font-bold text-amber-400 uppercase tracking-widest border-b border-amber-500/20 pb-1">Creative Defaults</h4>
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-gray-500 uppercase">Custom Ad Name (Optional)</label>
+                        <input type="text" id="tt-deploy-ad-name" value="${config.custom_ad_name}" placeholder="AI_Campaign_Batch_1" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-xs font-bold text-white">
+                    </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Call To Action</label>
@@ -1813,22 +2226,66 @@ function renderDeploySelectionScreen() {
                         </div>
                     </div>
                     <div class="space-y-1">
-                        <label class="text-[8px] font-black text-gray-500 uppercase">Custom Ad Name (Optional)</label>
-                        <input type="text" id="tt-deploy-ad-name" value="${config.custom_ad_name}" placeholder="AI_Campaign_Batch_1" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-xs font-bold text-white">
-                    </div>
-                    <div class="space-y-1">
                         <label class="text-[8px] font-black text-gray-500 uppercase">Target Interests (Tags/Keywords)</label>
                         <input type="text" id="tt-deploy-interests" value="${config.interests}" placeholder="Fashion, Technology, Gaming..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-xs font-bold text-white">
                     </div>
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-gray-500 uppercase">Landing URL</label>
+                        <div class="flex gap-2">
+                            <input type="text" id="tt-deploy-url" value="${config.landing_url}" placeholder="https://..." class="flex-1 bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-xs font-bold text-white">
+                            <button class="px-4 bg-white text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-all">ADD</button>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Targeting Brief -->
-                <div class="bg-black/40 p-4 rounded-2xl border border-white/5 space-y-3">
-                    <h4 class="text-[9px] font-bold text-cyan-400 uppercase tracking-widest flex items-center justify-between">
-                        Deployment Mapping Preview <span class="text-xs">⚡</span>
-                    </h4>
-                    <div class="flex flex-wrap gap-2">
-                        ${state.marketingData.targeting.map(t => `<span class="px-3 py-1 bg-cyan-500/10 text-cyan-500 text-[9px] font-black rounded-lg border border-cyan-500/20 uppercase">${t.country} - Age ${t.ageMin}+</span>`).join('')}
+                <!-- Group 4: Targeting Parameters -->
+                <div class="space-y-4">
+                    <h4 class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest border-b border-emerald-500/20 pb-1">Targeting Parameters</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Country</label>
+                            <select id="tt-deploy-country" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-emerald-500 text-[11px] font-bold text-white">
+                                <option value="US" ${config.country === 'US' ? 'selected' : ''}>United States</option>
+                                <option value="GB" ${config.country === 'GB' ? 'selected' : ''}>United Kingdom</option>
+                                <option value="BD" ${config.country === 'BD' ? 'selected' : ''}>Bangladesh</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Language</label>
+                            <select id="tt-deploy-language" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-emerald-500 text-[11px] font-bold text-white">
+                                <option value="en" ${config.language === 'en' ? 'selected' : ''}>English</option>
+                                <option value="es" ${config.language === 'es' ? 'selected' : ''}>Spanish</option>
+                                <option value="fr" ${config.language === 'fr' ? 'selected' : ''}>French</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-1">
+                        <label class="text-[8px] font-black text-gray-500 uppercase">Specific Area (Optional)</label>
+                        <div class="w-full bg-[#0B0E14] border border-dashed border-[#2A2F3A] p-4 rounded-xl flex flex-col items-center justify-center space-y-2 group hover:border-emerald-500/50 transition-all cursor-pointer">
+                            <span class="text-xl">🗺️</span>
+                            <span id="map-select-label" class="text-[9px] font-black text-gray-500 uppercase tracking-widest group-hover:text-emerald-400">Select from Maps</span>
+                            <input type="hidden" id="tt-deploy-area" value="${config.area}">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Age Range</label>
+                            <div class="flex items-center gap-2">
+                                <input type="number" id="tt-deploy-age-min" value="${config.ageMin}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-emerald-500 text-sm font-black text-white text-center">
+                                <span class="text-gray-600 text-[10px] font-bold">to</span>
+                                <input type="number" id="tt-deploy-age-max" value="${config.ageMax}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-emerald-500 text-sm font-black text-white text-center">
+                            </div>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] font-black text-gray-500 uppercase">Gender</label>
+                            <select id="tt-deploy-gender" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-emerald-500 text-[11px] font-bold text-white">
+                                <option value="GENDER_ANY" ${config.gender === 'GENDER_ANY' ? 'selected' : ''}>All</option>
+                                <option value="GENDER_MALE" ${config.gender === 'GENDER_MALE' ? 'selected' : ''}>Male</option>
+                                <option value="GENDER_FEMALE" ${config.gender === 'GENDER_FEMALE' ? 'selected' : ''}>Female</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1845,20 +2302,30 @@ function renderDeploySelectionScreen() {
         }
 
         document.getElementById('tt-deploy-save').onclick = () => {
-          config.campaign_id = document.getElementById('tt-deploy-camp-id').value
-          config.daily_budget = document.getElementById('tt-deploy-budget').value
-          config.bid = document.getElementById('tt-deploy-bid').value
-          config.schedule_start = document.getElementById('tt-deploy-start').value
-          config.schedule_end = document.getElementById('tt-deploy-end').value
+          const getValue = (id) => document.getElementById(id)?.value || ''
 
-          config.budget_mode = document.getElementById('tt-deploy-budget-mode').value
-          config.placement = document.getElementById('tt-deploy-placement').value
-          config.pacing = document.getElementById('tt-deploy-pacing').value
-          config.bid_type = document.getElementById('tt-deploy-bid-type').value
-          config.cta = document.getElementById('tt-deploy-cta').value
-          config.status = document.getElementById('tt-deploy-status').value
-          config.custom_ad_name = document.getElementById('tt-deploy-ad-name').value
-          config.interests = document.getElementById('tt-deploy-interests').value
+          config.campaign_id = getValue('tt-deploy-camp-id')
+          config.daily_budget = getValue('tt-deploy-budget')
+          config.bid = getValue('tt-deploy-bid')
+          config.schedule_start = getValue('tt-deploy-start')
+          config.schedule_end = getValue('tt-deploy-end')
+
+          config.budget_mode = getValue('tt-deploy-budget-mode')
+          config.placement = getValue('tt-deploy-placement')
+          config.pacing = getValue('tt-deploy-pacing')
+          config.bid_type = getValue('tt-deploy-bid-type')
+          config.cta = getValue('tt-deploy-cta')
+          config.status = getValue('tt-deploy-status')
+          config.custom_ad_name = getValue('tt-deploy-ad-name')
+          config.interests = getValue('tt-deploy-interests')
+          config.landing_url = getValue('tt-deploy-url')
+
+          config.country = getValue('tt-deploy-country')
+          config.language = getValue('tt-deploy-language')
+          config.area = getValue('tt-deploy-area')
+          config.ageMin = getValue('tt-deploy-age-min')
+          config.ageMax = getValue('tt-deploy-age-max')
+          config.gender = getValue('tt-deploy-gender')
 
           selectedPlatforms.add('TikTok')
           btn.classList.add('border-amber-500', 'bg-amber-500/5')
@@ -1962,9 +2429,11 @@ ${JSON.stringify(previewPayload, null, 2)}
 
           // 3. Remove from Queue
           state.marketingData.cmoQueue = state.marketingData.cmoQueue.filter(a => a.id !== asset.id)
+          state.marketingData.ppcQueue = state.marketingData.ppcQueue.filter(a => a.id !== asset.id)
         }
 
         await saveCmoQueue()
+        await savePpcQueue()
         state.marketingData.selectedAssets = [] // Cleanup
 
         showNotification(`${assets.length} Variations successfully deployed across ${selectedPlatforms.size} platforms.`, 'success')
@@ -2036,6 +2505,14 @@ async function initApp() {
       const cmoData = await cmoRes.json()
       state.marketingData.cmoQueue = cmoData || []
       console.log(`✓ Loaded ${state.marketingData.cmoQueue.length} pending items for CMO.`)
+    }
+
+    // Load PPC Queue
+    const ppcRes = await fetch(`${API_BASE}/ppc/queue`)
+    if (ppcRes.ok) {
+      const ppcData = await ppcRes.json()
+      state.marketingData.ppcQueue = ppcData || []
+      console.log(`✓ Loaded ${state.marketingData.ppcQueue.length} approved items for PPC.`)
     }
   } catch (e) {
     console.warn('⚠ Backend storage service offline. Using local session memory only.')

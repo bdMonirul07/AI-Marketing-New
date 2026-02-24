@@ -7,11 +7,10 @@
 export async function deployToTikTok(asset, apiBase, state, isPreview = false) {
     const config = state.marketingData.platformConfig.tiktok;
 
-    // Helper: Map targeting to TikTok Format
-    const primaryTarget = state.marketingData.targeting[0] || { country: "United States", ageMin: 18, ageMax: 65, gender: "All" };
-
-    const countryMap = { "United States": "US", "United Kingdom": "GB", "Germany": "DE", "Bangladesh": "BD" };
-    const ttCountry = countryMap[primaryTarget.country] || "US";
+    // Targeting (Sync with Marketing Suite Targeting UI or Manual Config)
+    const ttCountry = config.country || "US";
+    const ttLanguage = config.language ? [config.language] : [state.marketingData.brandGuidelines.language?.toLowerCase().slice(0, 2) || "en"];
+    const ttGender = config.gender === 'GENDER_MALE' ? ["GENDER_MALE"] : config.gender === 'GENDER_FEMALE' ? ["GENDER_FEMALE"] : ["GENDER_MALE", "GENDER_FEMALE"];
 
     const getAgeGroups = (min, max) => {
         const groups = [];
@@ -24,18 +23,14 @@ export async function deployToTikTok(asset, apiBase, state, isPreview = false) {
         return groups.length ? groups : ["AGE_18_24", "AGE_25_34"];
     }
 
-    const ttGender = primaryTarget.gender === 'Male' ? ["GENDER_MALE"] : primaryTarget.gender === 'Female' ? ["GENDER_FEMALE"] : ["GENDER_MALE", "GENDER_FEMALE"];
-
     // Determine active objective parameters based on marketingData.objective
     const objectiveMapping = {
         "LEAD_GENERATION": { promo: "LEAD_GENERATION", billing: "OCPM", goal: "LEAD" },
-        "SALES": { promo: "SALES", billing: "OCPM", goal: "PURCHASE" }, // Assuming PURCHASE for sales
+        "SALES": { promo: "SALES", billing: "OCPM", goal: "PURCHASE" },
         "APP_INSTALL": { promo: "APP_INSTALL", billing: "OCPM", goal: "INSTALL_APP" },
         "REACH": { promo: "REACH", billing: "OCPM", goal: "REACH" },
-        // Add more mappings as needed
     };
     const activeObjective = objectiveMapping[state.marketingData.objective] || objectiveMapping["LEAD_GENERATION"];
-
 
     // 1. Ad Group Parameters (Targeting & Budget - Mapping from State)
     const adGroupPayload = {
@@ -65,9 +60,9 @@ export async function deployToTikTok(asset, apiBase, state, isPreview = false) {
             geo_locations: {
                 countries: [ttCountry]
             },
-            age_groups: getAgeGroups(parseInt(primaryTarget.ageMin), parseInt(primaryTarget.ageMax)),
+            age_groups: getAgeGroups(parseInt(config.ageMin || 18), parseInt(config.ageMax || 65)),
             genders: ttGender,
-            languages: [state.marketingData.brandGuidelines.language?.toLowerCase().slice(0, 2) || "en"],
+            languages: ttLanguage,
             ad_tag_v2: config.interests ? config.interests.split(',').map(i => i.trim()).filter(i => i) : []
         },
         pixel_id: config.pixel_id || null,
@@ -81,7 +76,8 @@ export async function deployToTikTok(asset, apiBase, state, isPreview = false) {
         video_id: asset.id, // Using asset ID as video identifier for backend to resolve
         ad_text: state.marketingData.goal?.slice(0, 100) || "Discover our amazing brand!", // AI-derived goal
         identity_id: config.identity_id || null,
-        call_to_action: config.cta || (state.marketingData.objective === 'Sell' ? 'SHOP_NOW' : 'LEARN_MORE')
+        call_to_action: config.cta || (state.marketingData.objective === 'Sell' ? 'SHOP_NOW' : 'LEARN_MORE'),
+        landing_page_url: config.landing_url || null
     };
 
     console.log("🚀 Dispatching TikTok Deployment Payloads...", { adGroupPayload, adCreativePayload });
