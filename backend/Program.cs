@@ -1,5 +1,8 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
+using Backend.Data;
+using Backend.Models;
 
 const string GuidelinesFile = "brand_guidelines.json";
 const string CampaignsFile = "campaigns.json";
@@ -16,6 +19,8 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddOpenApi();
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
@@ -63,65 +68,73 @@ app.UseStaticFiles(new StaticFileOptions
 // app.UseHttpsRedirection();
 
 
-app.MapGet("/api/guidelines", async () =>
+app.MapGet("/api/guidelines", async (AppDbContext db) =>
 {
-    if (!File.Exists(GuidelinesFile))
-    {
-        return Results.NotFound();
-    }
-    var json = await File.ReadAllTextAsync(GuidelinesFile);
-    return Results.Text(json, "application/json");
+    var guideline = await db.BrandGuidelines.OrderByDescending(g => g.UpdatedAt).FirstOrDefaultAsync();
+    if (guideline == null) return Results.NotFound();
+    return Results.Ok(guideline);
 });
 
-app.MapPost("/api/guidelines", async (HttpRequest request) =>
+app.MapPost("/api/guidelines", async (AppDbContext db, HttpRequest request) =>
 {
     using var reader = new StreamReader(request.Body);
     var json = await reader.ReadToEndAsync();
-    await File.WriteAllTextAsync(GuidelinesFile, json);
-    return Results.Ok();
-});
-
-app.MapPost("/api/campaigns", async (HttpRequest request) =>
-{
-    using var reader = new StreamReader(request.Body);
-    var json = await reader.ReadToEndAsync();
+    var newGuideline = JsonSerializer.Deserialize<BrandGuideline>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
     
-    // Append or overwrite? User said "save the contact in creative stdio". 
-    // Usually means saving the current session's output.
-    await File.WriteAllTextAsync(CampaignsFile, json);
+    if (newGuideline == null) return Results.BadRequest("Invalid data");
+    
+    newGuideline.UpdatedAt = DateTime.UtcNow;
+    db.BrandGuidelines.Add(newGuideline);
+    await db.SaveChangesAsync();
     return Results.Ok();
 });
 
-app.MapGet("/api/campaigns", async () =>
-{
-    if (!File.Exists(CampaignsFile))
-    {
-        return Results.NotFound();
-    }
-    var json = await File.ReadAllTextAsync(CampaignsFile);
-    return Results.Text(json, "application/json");
-});
-
-app.MapGet("/api/cmo/queue", async () =>
-{
-    if (!File.Exists(CmoQueueFile))
-    {
-        return Results.Ok(new List<object>());
-    }
-    var json = await File.ReadAllTextAsync(CmoQueueFile);
-    return Results.Text(json, "application/json");
-});
-
-app.MapPost("/api/cmo/queue", async (HttpRequest request) =>
+app.MapPost("/api/campaigns", async (AppDbContext db, HttpRequest request) =>
 {
     using var reader = new StreamReader(request.Body);
     var json = await reader.ReadToEndAsync();
-    await File.WriteAllTextAsync(CmoQueueFile, json);
+    var campaign = JsonSerializer.Deserialize<Campaign>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+    
+    if (campaign == null) return Results.BadRequest("Invalid data");
+    
+    campaign.Timestamp = DateTime.UtcNow;
+    db.Campaigns.Add(campaign);
+    await db.SaveChangesAsync();
+    return Results.Ok();
+});
+
+app.MapGet("/api/campaigns", async (AppDbContext db) =>
+{
+    var campaigns = await db.Campaigns.OrderByDescending(c => c.Timestamp).ToListAsync();
+    return Results.Ok(campaigns);
+});
+
+app.MapGet("/api/cmo/queue", async (AppDbContext db) =>
+{
+    var queue = await db.CmoQueue.ToListAsync();
+    return Results.Ok(queue);
+});
+
+app.MapPost("/api/cmo/queue", async (AppDbContext db, HttpRequest request) =>
+{
+    using var reader = new StreamReader(request.Body);
+    var json = await reader.ReadToEndAsync();
+    var items = JsonSerializer.Deserialize<List<CmoQueueItem>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+    
+    if (items == null) return Results.BadRequest("Invalid data");
+
+    // Replace entire queue for now (Sync logic)
+    var currentQueue = await db.CmoQueue.ToListAsync();
+    db.CmoQueue.RemoveRange(currentQueue);
+    db.CmoQueue.AddRange(items);
+    
+    await db.SaveChangesAsync();
     return Results.Ok();
 });
 
 app.MapGet("/api/ppc/queue", async () =>
 {
+    // For now, PPC queue remains in JSON or just return empty if not fully transitioned
     if (!File.Exists(PpcQueueFile))
     {
         return Results.Ok(new List<object>());
