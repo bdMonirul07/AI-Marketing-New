@@ -152,6 +152,29 @@ const roles = {
   }
 }
 
+const screenRegistry = {
+  'Dashboard': { label: 'Dashboard', icon: '🏠' },
+  'Objective': { label: 'Campaign Objective', icon: '🎯' },
+  'Targeting': { label: 'Target Audience', icon: '👥' },
+  'Research': { label: 'Strategy Hub', icon: '🧠' },
+  'CreativeConfig': { label: 'Creative Config', icon: '🎬' },
+  'Studio': { label: 'Creative Studio', icon: '🎨' },
+  'BudgetMatrix': { label: 'Budget & Matrix', icon: '📈' },
+  'Approvals': { label: 'Ad Approvals', icon: '✅' },
+  'Monitoring': { label: 'AI Monitoring', icon: '📊' },
+  'Budget': { label: 'Budget Overview', icon: '💰' },
+  'Notifications': { label: 'Notifications', icon: '🔔' },
+  'ApprovedAssets': { label: 'Approved Assets', icon: '✅' },
+  'DeploySelection': { label: 'Platform Selection', icon: '🎯' },
+  'UserManagement': { label: 'User Management', icon: '👥' },
+  'RoleManagement': { label: 'Role Management', icon: '👤' },
+  'CompanyProfile': { label: 'Company Profile', icon: '🏢' },
+  'Config': { label: 'Platform Config', icon: '⚙️' },
+  'Calendar': { label: 'Global Calendar', icon: '📅' },
+  'Guideline': { label: 'Brand Guideline', icon: '📜' },
+  'Assets': { label: 'Creative Assets', icon: '🖼️' }
+};
+
 // --- DOM Elements ---
 const navLinks = document.getElementById('nav-links')
 const pageTitleName = document.getElementById('current-page-name')
@@ -325,26 +348,47 @@ function updateUI() {
   document.querySelector('aside').classList.remove('hidden')
   document.querySelector('header').classList.remove('hidden')
 
-  const currentRole = roles[state.activeRole]
-  const currentScreen = currentRole.screens.find(s => s.id === state.activeScreen) || currentRole.screens[0]
+  const currentRoleName = state.user?.role || state.activeRole || 'User'
+  const fallbackRole = roles[currentRoleName] || roles['Expert']
+
+  const themeColor = fallbackRole.themeColor || 'purple'
+  const roleDisplayName = fallbackRole.displayName || `${currentRoleName} Role`
+  const roleIcon = fallbackRole.icon || currentRoleName[0].toUpperCase()
+
+  // Use dynamic permissions if available, otherwise fallback
+  let allowedScreenIds = state.user?.screens || state.user?.Screens
+  if (!allowedScreenIds && fallbackRole) {
+    allowedScreenIds = fallbackRole.screens.map(s => s.id)
+  }
+  if (!allowedScreenIds || allowedScreenIds.length === 0) {
+    allowedScreenIds = ['Dashboard'] // fallback minimal access
+  }
+
+  const currentScreens = allowedScreenIds.map(id => ({
+    id,
+    label: screenRegistry[id]?.label || id,
+    icon: screenRegistry[id]?.icon || '📄'
+  }))
+
+  const currentScreen = currentScreens.find(s => s.id === state.activeScreen) || currentScreens[0]
   state.activeScreen = currentScreen.id
 
   // Update Header & Sidebar
-  activeRoleDisplay.innerText = currentRole.displayName
-  activeRoleIcon.innerText = currentRole.icon
-  activeRoleIcon.className = `w-8 h-8 rounded-full bg-${currentRole.themeColor}-900/50 flex items-center justify-center text-${currentRole.themeColor}-400 font-bold border border-${currentRole.themeColor}-500/30`
-  userInitial.innerText = state.user?.username ? state.user.username[0].toUpperCase() : currentRole.icon
-  userName.innerText = state.user?.username || `${currentRole.displayName.split(' ')[1]} User`
+  activeRoleDisplay.innerText = roleDisplayName
+  activeRoleIcon.innerText = roleIcon
+  activeRoleIcon.className = `w-8 h-8 rounded-full bg-${themeColor}-900/50 flex items-center justify-center text-${themeColor}-400 font-bold border border-${themeColor}-500/30`
+  userInitial.innerText = state.user?.username ? state.user.username[0].toUpperCase() : roleIcon
+  userName.innerText = state.user?.username || `${roleDisplayName.split(' ')[1]} User`
 
-  pageTitleName.innerText = currentScreen.id
+  pageTitleName.innerText = currentScreen.label
 
   // Update Nav Links
-  navLinks.innerHTML = currentRole.screens.map(screen => {
+  navLinks.innerHTML = currentScreens.map(screen => {
     const isApprovals = screen.id === 'Approvals'
     const queueCount = state.marketingData.cmoQueue.length
 
     return `
-      <button class="nav-btn w-full flex items-center justify-between p-3 rounded-xl transition-all ${state.activeScreen === screen.id ? `bg-${currentRole.themeColor}-500/20 text-${currentRole.themeColor}-400 border border-${currentRole.themeColor}-500/30 font-bold` : 'text-gray-400 hover:text-white hover:bg-gray-800/50'}" data-screen="${screen.id}">
+      <button class="nav-btn w-full flex items-center justify-between p-3 rounded-xl transition-all ${state.activeScreen === screen.id ? `bg-${themeColor}-500/20 text-${themeColor}-400 border border-${themeColor}-500/30 font-bold` : 'text-gray-400 hover:text-white hover:bg-gray-800/50'}" data-screen="${screen.id}">
         <div class="flex items-center space-x-3">
           <span class="text-lg">${screen.icon}</span>
           <span class="text-sm">${screen.label}</span>
@@ -1649,99 +1693,188 @@ function renderCompanyProfileScreen() {
   }
 }
 
-function renderRoleManagementScreen() {
-  const roleStats = Object.keys(roles).map(id => ({
-    id,
-    ...roles[id],
-    userCount: Math.floor(Math.random() * 5) + 1 // Simulated for UI
-  }))
-
+// --- Role Management (Admin) ---
+async function renderRoleManagementScreen() {
   contentContainer.innerHTML = `
-    <div class="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
-        <div class="flex justify-between items-center">
-            <div>
-                <h2 class="text-3xl font-black uppercase italic tracking-tighter">Identity <span class="text-purple-500">Access Control</span></h2>
-                <p class="text-gray-500 text-xs uppercase tracking-widest font-bold mt-1">Manage platform roles and permission tokens</p>
+        <div class="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-700">
+            <div class="text-center space-y-2">
+                <h2 class="text-3xl font-black uppercase tracking-tighter text-purple-400">Role & <span class="text-white">Permission Hub</span></h2>
+                <p class="text-gray-500 text-sm font-medium italic">Define architectural roles and map screen-level access protocols.</p>
             </div>
-            <button class="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg transition-all flex items-center gap-2">
-                <span>ADD NEW SEAT</span>
-                <span class="text-lg">+</span>
-            </button>
-        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            ${roleStats.map(role => `
-                <div class="bg-[var(--card-bg)] border border-[var(--border-color)] p-6 rounded-3xl hover:border-purple-500/30 transition-all group relative overflow-hidden">
-                    <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-all"></div>
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                <!-- Role Creation Form -->
+                <div class="lg:col-span-1 bg-[var(--card-bg)] border border-[var(--border-color)] p-6 rounded-[30px] shadow-2xl space-y-6">
+                    <h3 class="text-lg font-black uppercase tracking-widest text-white border-b border-white/5 pb-3 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></span>
+                        New Role
+                    </h3>
                     
-                    <div class="flex items-start justify-between relative z-10">
-                        <div class="flex items-center gap-4">
-                            <div class="w-12 h-12 rounded-2xl bg-${role.themeColor}-900/30 border border-${role.themeColor}-500/30 flex items-center justify-center text-${role.themeColor}-400 font-black text-xl shadow-inner">
-                                ${role.icon}
+                    <form id="role-creation-form" class="space-y-4">
+                        <div class="space-y-1.5">
+                            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Role Name</label>
+                            <input type="text" id="role-name-input" required class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-white text-sm" placeholder="e.g. Content Lead">
+                        </div>
+                        <button type="submit" id="btn-create-role" class="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl transition-all shadow-xl uppercase tracking-widest text-[9px]">
+                           Initialize Role 💾
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Existing Roles Matrix -->
+                <div class="lg:col-span-3 space-y-6" id="roles-matrix-container">
+                    <!-- Loaded dynamically -->
+                    <div class="flex items-center justify-center py-24 bg-white/5 rounded-[30px] border border-dashed border-white/10 text-gray-500">
+                         SYNCING NODES...
+                    </div>
+                </div>
+            </div>
+        </div>
+    `
+
+  loadRolesMatrix()
+
+  // Form handler
+  document.getElementById('role-creation-form').onsubmit = async (e) => {
+    e.preventDefault()
+    const name = document.getElementById('role-name-input').value
+    const btn = document.getElementById('btn-create-role')
+    btn.disabled = true
+
+    try {
+      const res = await fetch(`${API_BASE}/rbac/roles`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name })
+      })
+      if (res.ok) {
+        showNotification(`ROLE CREATED: '${name}' is now active.`, "success")
+        document.getElementById('role-creation-form').reset()
+        loadRolesMatrix()
+      }
+    } catch (e) {
+      showNotification("Protocol Error: Could not reach backend.", "error")
+    } finally {
+      btn.disabled = false
+    }
+  }
+}
+
+async function loadRolesMatrix() {
+  const container = document.getElementById('roles-matrix-container')
+
+  try {
+    const [rolesRes, screensRes] = await Promise.all([
+      fetch(`${API_BASE}/rbac/roles`),
+      fetch(`${API_BASE}/rbac/screens`)
+    ])
+
+    const rolesData = await rolesRes.json()
+    const screens = await screensRes.json()
+
+    container.innerHTML = rolesData.map(role => {
+      const isSystemRole = ['Admin', 'CMO', 'PPC', 'Expert'].includes(role.name)
+
+      return `
+                <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[30px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
+                    <!-- Role Header -->
+                    <div class="p-5 bg-white/5 border-b border-white/5 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-2xl bg-purple-900/40 border border-purple-500/30 flex items-center justify-center font-black text-purple-400">
+                                ${role.name[0].toUpperCase()}
                             </div>
                             <div>
-                                <h4 class="text-lg font-black uppercase tracking-tight">${role.displayName}</h4>
-                                <div class="flex items-center gap-2 mt-1">
-                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    <span class="text-[10px] text-gray-400 font-black uppercase tracking-widest">${role.userCount} Active Users</span>
-                                </div>
+                                <h4 class="text-white font-black uppercase tracking-tighter leading-tight">${role.name} ROLE</h4>
+                                <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">UID: RL-${role.id.toString().padStart(3, '0')}</p>
                             </div>
                         </div>
                         <div class="flex gap-2">
-                            <button class="p-2 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-white transition-all">⚙️</button>
-                            <button class="p-2 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-rose-500 transition-all">🔒</button>
+                            <button class="save-perms-btn px-4 py-2 bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 rounded-lg text-[9px] font-black uppercase hover:bg-emerald-500 hover:text-white transition-all shadow-lg" data-id="${role.id}">Save Sync ✅</button>
+                            ${!isSystemRole ? `<button class="delete-role-btn px-4 py-2 bg-rose-900/30 text-rose-500 border border-rose-500/20 rounded-lg text-[9px] font-black uppercase hover:bg-rose-500 hover:text-white transition-all shadow-lg" data-id="${role.id}" data-name="${role.name}">Delete 🗑️</button>` : ''}
                         </div>
                     </div>
 
-                    <div class="mt-6 space-y-3 relative z-10">
-                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Enabled Modules</p>
-                        <div class="flex flex-wrap gap-2">
-                            ${role.screens.map(screen => `
-                                <span class="px-3 py-1 bg-[var(--bg-color)] border border-[#1F2430] rounded-full text-[9px] font-black text-gray-400 uppercase tracking-tighter flex items-center gap-1.5">
-                                    <span>${screen.icon}</span>
-                                    <span>${screen.label}</span>
-                                </span>
+                    <!-- Screen Perms Grid -->
+                    <div class="p-6">
+                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="perms-grid-${role.id}">
+                            ${screens.map(screen => `
+                                <label class="flex items-center gap-2 p-3 bg-black/30 border border-white/5 rounded-xl cursor-pointer hover:border-purple-500/30 hover:bg-white/5 transition-all group">
+                                    <input type="checkbox" class="screen-check w-4 h-4 accent-purple-500" data-role="${role.id}" data-screen="${screen.id}" value="${screen.id}">
+                                    <div>
+                                        <p class="text-[10px] font-bold text-gray-300 group-hover:text-white transition-colors">${screen.displayName}</p>
+                                        <p class="text-[8px] text-gray-600 uppercase font-black tracking-widest group-hover:text-purple-400 transition-colors">${screen.name}</p>
+                                    </div>
+                                </label>
                             `).join('')}
                         </div>
-                    </div>
-
-                    <div class="mt-8 pt-6 border-t border-[#1F2430] flex justify-between items-center relative z-10">
-                        <div class="flex -space-x-2">
-                            ${Array(role.userCount).fill(0).map((_, i) => `
-                                <div class="w-8 h-8 rounded-full border-2 border-[#151921] bg-gray-800 flex items-center justify-center text-[10px] font-black uppercase overflow-hidden">
-                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${role.id}${i}" class="w-full h-full object-cover">
-                                </div>
-                            `).join('')}
-                        </div>
-                        <button class="text-[10px] font-black text-purple-400 hover:text-purple-300 uppercase tracking-widest transition-all">Manage Permissions →</button>
                     </div>
                 </div>
-            `).join('')}
-        </div>
+            `
+    }).join('')
 
-        <!-- System Logs / Security Preview -->
-        <div class="bg-[var(--card-bg)] border border-dashed border-[var(--border-color)] p-8 rounded-3xl">
-            <h3 class="text-sm font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
-                <span class="text-purple-500">🛡️</span> Security Access Logs
-            </h3>
-            <div class="space-y-4">
-                ${[1, 2, 3].map(i => `
-                    <div class="flex items-center justify-between py-3 border-b border-[#1F2430] last:border-0 border-dashed">
-                        <div class="flex items-center gap-4">
-                            <div class="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 text-xs">✓</div>
-                            <div>
-                                <p class="text-[11px] font-bold text-gray-200">Role Elevation Authorized: <span class="text-purple-400">${['PPC Specialist', 'CMO Dashboard', 'Marketing Expert'][i - 1]}</span></p>
-                                <p class="text-[9px] text-gray-500 uppercase tracking-widest">User ID: system_auth_882${i} • 24 Feb 2026, 11:55 AM</p>
-                            </div>
-                        </div>
-                        <span class="text-[9px] font-black text-gray-600 tracking-tighter">IP: 192.168.1.10${i}</span>
-                    </div>
-                `).join('')}
-            </div>
-        </div>
-    </div>
-  `
+    // Fetch and set initial checkbox values
+    for (const role of rolesData) {
+      const res = await fetch(`${API_BASE}/rbac/role-permissions/${role.id}`)
+      if (res.ok) {
+        const grantedScreenIds = await res.json()
+        const checkboxes = document.querySelectorAll(`input[data-role="${role.id}"]`)
+        checkboxes.forEach(cb => {
+          if (grantedScreenIds.includes(parseInt(cb.value))) cb.checked = true
+        })
+      }
+    }
+
+    // Add Event Listeners
+    document.querySelectorAll('.save-perms-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const roleId = parseInt(btn.dataset.id)
+        const checked = Array.from(document.querySelectorAll(`input[data-role="${roleId}"]:checked`)).map(cb => parseInt(cb.value))
+
+        btn.disabled = true
+        const originalText = btn.innerText
+        btn.innerText = "SYNCING..."
+
+        try {
+          const res = await fetch(`${API_BASE}/rbac/role-permissions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ roleId, screenIds: checked })
+          })
+          if (res.ok) {
+            showNotification("ACCESS PROTOCOL SYNCED", "success")
+          }
+        } catch (e) {
+          showNotification("Sync Failed", "error")
+        } finally {
+          btn.disabled = false
+          btn.innerText = originalText
+        }
+      }
+    })
+
+    document.querySelectorAll('.delete-role-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const roleId = btn.dataset.id
+        const name = btn.dataset.name
+        if (!confirm(`Confirm destruction of the '${name}' identity protocol?`)) return
+
+        try {
+          const res = await fetch(`${API_BASE}/rbac/roles/${roleId}`, { method: 'DELETE' })
+          if (res.ok) {
+            showNotification(`DECOMMISSIONED: '${name}' role deleted.`, "success")
+            loadRolesMatrix()
+          }
+        } catch (e) {
+          showNotification("Deletion Request Failure.", "error")
+        }
+      }
+    })
+
+  } catch (e) {
+    container.innerHTML = `<div class="p-8 text-center text-rose-500 font-bold italic border border-rose-500/20 bg-rose-500/5 rounded-3xl">Neural Link Failure: Role matrix offline.</div>`
+  }
 }
+
 
 function renderCalendarScreen() {
   contentContainer.innerHTML = `

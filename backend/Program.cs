@@ -204,6 +204,63 @@ app.MapDelete("/api/rbac/users/{id}", async (AppDbContext db, int id) =>
     return Results.Ok(new { message = "User access revoked" });
 });
 
+// Role Management
+app.MapPost("/api/rbac/roles", async (AppDbContext db, Role role) =>
+{
+    if (string.IsNullOrWhiteSpace(role.Name)) return Results.BadRequest("Role name required");
+    db.Roles.Add(role);
+    await db.SaveChangesAsync();
+    return Results.Created($"/api/rbac/roles/{role.Id}", role);
+});
+
+app.MapPut("/api/rbac/roles/{id}", async (AppDbContext db, int id, Role updatedRole) =>
+{
+    var role = await db.Roles.FindAsync(id);
+    if (role == null) return Results.NotFound();
+    role.Name = updatedRole.Name;
+    await db.SaveChangesAsync();
+    return Results.Ok(role);
+});
+
+app.MapDelete("/api/rbac/roles/{id}", async (AppDbContext db, int id) =>
+{
+    var role = await db.Roles.FindAsync(id);
+    if (role == null) return Results.NotFound();
+    
+    // Prevent deleting system roles if needed, or handle cascade
+    db.Roles.Remove(role);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = "Role decommissioning complete" });
+});
+
+// Permission Matrix
+app.MapGet("/api/rbac/role-permissions/{roleId}", async (AppDbContext db, int roleId) =>
+{
+    var screenIds = await db.RoleScreens
+        .Where(rs => rs.RoleId == roleId)
+        .Select(rs => rs.ScreenId)
+        .ToListAsync();
+    return Results.Ok(screenIds);
+});
+
+app.MapPost("/api/rbac/role-permissions", async (AppDbContext db, RolePermissionsRequest req) =>
+{
+    // Clear old perms
+    var old = db.RoleScreens.Where(rs => rs.RoleId == req.RoleId);
+    db.RoleScreens.RemoveRange(old);
+    
+    // Add new ones
+    foreach (var sid in req.ScreenIds)
+    {
+        db.RoleScreens.Add(new RoleScreen { RoleId = req.RoleId, ScreenId = sid });
+    }
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = "Permissions synchronized" });
+});
+
+
+
+
 app.MapPost("/api/rbac/seed", async (AppDbContext db) =>
 {
     // Clear existing to ensure clean seed
@@ -245,7 +302,10 @@ app.MapPost("/api/rbac/seed", async (AppDbContext db) =>
         new Screen { Name = "UserManagement", DisplayName = "User Management" },
         new Screen { Name = "RoleManagement", DisplayName = "Role Management" },
         new Screen { Name = "CompanyProfile", DisplayName = "Company Profile" },
-        new Screen { Name = "Config", DisplayName = "Social Ecosystem" }
+        new Screen { Name = "Config", DisplayName = "Platform Config" },
+        new Screen { Name = "Calendar", DisplayName = "Global Calendar" },
+        new Screen { Name = "Guideline", DisplayName = "Brand Guideline" },
+        new Screen { Name = "Assets", DisplayName = "Creative Assets" }
     };
     db.Screens.AddRange(screens);
     await db.SaveChangesAsync();
@@ -740,4 +800,6 @@ record GeoLocations(string[] countries);
 record GeminiRequest(string Brief);
 record GeminiFollowUpRequest(string OriginalBrief, string[] PreviousQuestions, string[] PreviousAnswers);
 record RolePermissionUpdate(int RoleId, int[] ScreenIds);
+
+public record RolePermissionsRequest(int RoleId, List<int> ScreenIds);
 

@@ -328,8 +328,12 @@
   - [x] Connect the form to the backend `/api/auth/register` endpoint.
   - [x] Ensure newly created users are correctly saved to the PostgreSQL `Users` table and can be used for login.
 
-- [ ] **Step 58: Admin: Role Entry & Screen Assignment System**
-  - [ ] Implement a "Create New Role" form in the Role Management screen.
-  - [ ] Add a "Screen Assignment" interface where the admin can select/unselect screens for each role.
-  - [ ] Create/Update backend endpoints to handle new role creation and mapping roles to screens (`RoleScreens` table).
-  - [ ] Ensure that changes to role permissions are immediately reflected in the database and sidebar for relevant users.
+- [x] **Step 58: Admin: Role Entry & Screen Assignment System**
+  - [x] Implement a "Create New Role" form in the Role Management screen.
+  - [x] Add a "Screen Assignment" matrix where the admin can select/unselect screens for each role.
+  - [x] Implement "Edit" and "Delete/Revoke" functionality for existing roles.
+  - [x] Create/Update backend endpoints to handle new role creation, editing, and mapping roles to screens (`RoleScreens` table).
+  - [x] Ensure that changes to role permissions are immediately reflected in the database and sidebar for relevant users.
+
+
+
