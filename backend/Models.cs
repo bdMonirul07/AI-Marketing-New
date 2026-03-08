@@ -85,6 +85,46 @@ namespace Backend.Models
         public DateTime AddedAt { get; set; } = DateTime.UtcNow;
     }
 
+    [Table("roles")]
+    public class Role
+    {
+        [Key]
+        [Column("id")]
+        public int Id { get; set; }
+
+        [Required]
+        [Column("name")]
+        public string Name { get; set; } = string.Empty;
+    }
+
+    [Table("screens")]
+    public class Screen
+    {
+        [Key]
+        [Column("id")]
+        public int Id { get; set; }
+
+        [Required]
+        [Column("name")]
+        public string Name { get; set; } = string.Empty;
+
+        [Column("display_name")]
+        public string DisplayName { get; set; } = string.Empty;
+    }
+
+    [Table("role_screens")]
+    public class RoleScreen
+    {
+        [Column("role_id")]
+        public int RoleId { get; set; }
+
+        [Column("screen_id")]
+        public int ScreenId { get; set; }
+
+        public Role? Role { get; set; }
+        public Screen? Screen { get; set; }
+    }
+
     [Table("users")]
     public class User
     {
@@ -95,10 +135,22 @@ namespace Backend.Models
         [Column("username")]
         public string? Username { get; set; }
 
-        [Column("role")]
-        public string? Role { get; set; }
+        [Column("password_hash")]
+        public string? PasswordHash { get; set; }
+
+        [Column("email")]
+        public string? Email { get; set; }
+
+        [Column("role_id")]
+        public int RoleId { get; set; }
+
+        [ForeignKey("RoleId")]
+        public Role? Role { get; set; }
 
         [Column("created_at")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
+
+    public record RegisterRequest(string Username, string Password, string Email, int RoleId);
+    public record LoginRequest(string Username, string Password);
 }

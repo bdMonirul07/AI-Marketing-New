@@ -3,6 +3,11 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Backend.Data;
 using Backend.Models;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
+using System.Text;
+using System.IdentityModel.Tokens.Jwt;
 
 const string GuidelinesFile = "brand_guidelines.json";
 const string CampaignsFile = "campaigns.json";
@@ -18,9 +23,30 @@ var aiCache = new ConcurrentDictionary<string, string[]>();
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddOpenApi();
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// JWT Configuration
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "default_secret_key_at_least_32_chars_long";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "MarketingAIBackend";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "MarketingAIFronend";
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+    });
+
+builder.Services.AddAuthorization();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll",
@@ -34,6 +60,13 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// Ensure database is created
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.EnsureCreated();
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -41,6 +74,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("AllowAll");
+app.UseAuthentication();
+app.UseAuthorization();
 
 if (!Directory.Exists(AssetsFolder))
 {
@@ -67,9 +102,187 @@ app.UseStaticFiles(new StaticFileOptions
 });
 // app.UseHttpsRedirection();
 
+// --- Auth Endpoints ---
+app.MapPost("/api/auth/register", async (AppDbContext db, RegisterRequest req) =>
+{
+    if (await db.Users.AnyAsync(u => u.Username == req.Username))
+        return Results.BadRequest(new { message = "Username already exists" });
+
+    var user = new User
+    {
+        Username = req.Username,
+        Email = req.Email,
+        RoleId = req.RoleId,
+        PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
+        CreatedAt = DateTime.UtcNow
+    };
+
+    db.Users.Add(user);
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = "User registered successfully" });
+});
+
+app.MapPost("/api/auth/login", async (AppDbContext db, IConfiguration config, LoginRequest req) =>
+{
+    var user = await db.Users
+        .Include(u => u.Role)
+        .FirstOrDefaultAsync(u => u.Username!.ToLower() == req.Username.ToLower());
+
+    if (user == null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
+        return Results.Unauthorized();
+
+    var roleName = user.Role?.Name ?? "User";
+    
+    // Fetch screens for this role
+    var screens = await db.RoleScreens
+        .Where(rs => rs.RoleId == user.RoleId)
+        .Select(rs => rs.Screen!.Name)
+        .ToListAsync();
+
+    var jwtKey = config["Jwt:Key"] ?? "default_secret_key_at_least_32_chars_long";
+    var jwtIssuer = config["Jwt:Issuer"] ?? "MarketingAIBackend";
+    var jwtAudience = config["Jwt:Audience"] ?? "MarketingAIFronend";
+
+    var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+    var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+    var claims = new[]
+    {
+        new Claim(ClaimTypes.Name, user.Username!),
+        new Claim(ClaimTypes.Role, roleName),
+        new Claim(JwtRegisteredClaimNames.Sub, user.Username!)
+    };
+
+    var token = new JwtSecurityToken(
+        issuer: jwtIssuer,
+        audience: jwtAudience,
+        claims: claims,
+        expires: DateTime.Now.AddHours(8),
+        signingCredentials: credentials);
+
+    return Results.Ok(new { 
+        token = new JwtSecurityTokenHandler().WriteToken(token),
+        user = new { 
+            user.Username, 
+            Role = roleName, 
+            user.Email,
+            Screens = screens
+        }
+    });
+});
+
+
+// --- RBAC Endpoints ---
+app.MapGet("/api/rbac/roles", async (AppDbContext db) => await db.Roles.ToListAsync());
+
+app.MapGet("/api/rbac/screens", async (AppDbContext db) => await db.Screens.ToListAsync());
+
+app.MapGet("/api/rbac/role-permissions/{roleId}", async (AppDbContext db, int roleId) =>
+{
+    var permissions = await db.RoleScreens
+        .Where(rs => rs.RoleId == roleId)
+        .Select(rs => rs.ScreenId)
+        .ToListAsync();
+    return Results.Ok(permissions);
+});
+
+app.MapPost("/api/rbac/role-permissions", async (AppDbContext db, RolePermissionUpdate req) =>
+{
+    var existing = await db.RoleScreens.Where(rs => rs.RoleId == req.RoleId).ToListAsync();
+    db.RoleScreens.RemoveRange(existing);
+
+    var newPermissions = req.ScreenIds.Select(sid => new RoleScreen { RoleId = req.RoleId, ScreenId = sid });
+    db.RoleScreens.AddRange(newPermissions);
+
+    await db.SaveChangesAsync();
+    return Results.Ok();
+});
+
+app.MapPost("/api/rbac/seed", async (AppDbContext db) =>
+{
+    // Clear existing to ensure clean seed
+    db.RoleScreens.RemoveRange(db.RoleScreens);
+    db.Screens.RemoveRange(db.Screens);
+    db.Users.RemoveRange(db.Users);
+    db.Roles.RemoveRange(db.Roles);
+    await db.SaveChangesAsync();
+
+    var roles = new List<Role>
+    {
+        new Role { Name = "Admin" },
+        new Role { Name = "CMO" },
+        new Role { Name = "PPC" },
+        new Role { Name = "Expert" }
+    };
+    db.Roles.AddRange(roles);
+    await db.SaveChangesAsync();
+
+    var screens = new List<Screen>
+    {
+        new Screen { Name = "Dashboard", DisplayName = "Dashboard" },
+        // Marketing Expert Screens
+        new Screen { Name = "Objective", DisplayName = "Campaign Objective" },
+        new Screen { Name = "Targeting", DisplayName = "Target Audience" },
+        new Screen { Name = "Research", DisplayName = "Strategy Hub" },
+        new Screen { Name = "CreativeConfig", DisplayName = "Creative Config" },
+        new Screen { Name = "Studio", DisplayName = "Creative Studio" },
+        // CMO Screens
+        new Screen { Name = "BudgetMatrix", DisplayName = "Budget & Matrix" },
+        new Screen { Name = "Approvals", DisplayName = "Ad Approvals" },
+        new Screen { Name = "Monitoring", DisplayName = "AI Monitoring" },
+        new Screen { Name = "Budget", DisplayName = "Budget Overview" },
+        new Screen { Name = "Notifications", DisplayName = "Notifications" },
+        // PPC Screens
+        new Screen { Name = "ApprovedAssets", DisplayName = "Approved Assets" },
+        new Screen { Name = "DeploySelection", DisplayName = "Platform Selection" },
+        // Admin Screens
+        new Screen { Name = "UserManagement", DisplayName = "User Management" },
+        new Screen { Name = "RoleManagement", DisplayName = "Role Management" },
+        new Screen { Name = "CompanyProfile", DisplayName = "Company Profile" },
+        new Screen { Name = "Config", DisplayName = "Social Ecosystem" }
+    };
+    db.Screens.AddRange(screens);
+    await db.SaveChangesAsync();
+
+    // Map Roles to Screens (Initial Setup)
+    // Admin gets everything
+    foreach (var s in screens) {
+        db.RoleScreens.Add(new RoleScreen { RoleId = roles[0].Id, ScreenId = s.Id });
+    }
+
+    // CMO
+    var cmoScreens = new[] { "Dashboard", "BudgetMatrix", "Approvals", "Monitoring", "Budget", "Notifications" };
+    foreach (var s in screens.Where(x => cmoScreens.Contains(x.Name))) {
+        db.RoleScreens.Add(new RoleScreen { RoleId = roles[1].Id, ScreenId = s.Id });
+    }
+
+    // PPC
+    var ppcScreens = new[] { "Dashboard", "ApprovedAssets", "DeploySelection", "Monitoring", "Budget" };
+    foreach (var s in screens.Where(x => ppcScreens.Contains(x.Name))) {
+        db.RoleScreens.Add(new RoleScreen { RoleId = roles[2].Id, ScreenId = s.Id });
+    }
+
+    // Expert
+    var expertScreens = new[] { "Dashboard", "Objective", "Targeting", "Research", "CreativeConfig", "Studio" };
+    foreach (var s in screens.Where(x => expertScreens.Contains(x.Name))) {
+        db.RoleScreens.Add(new RoleScreen { RoleId = roles[3].Id, ScreenId = s.Id });
+    }
+
+    await db.SaveChangesAsync();
+
+    // Seed initial users
+    db.Users.Add(new User { Username = "admin", RoleId = roles[0].Id, PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456") });
+    db.Users.Add(new User { Username = "cmo", RoleId = roles[1].Id, PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456") });
+    db.Users.Add(new User { Username = "ppc", RoleId = roles[2].Id, PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456") });
+    db.Users.Add(new User { Username = "expert", RoleId = roles[3].Id, PasswordHash = BCrypt.Net.BCrypt.HashPassword("123456") });
+    await db.SaveChangesAsync();
+
+    return Results.Ok("Seeding successful and synchronized");
+});
 
 app.MapGet("/api/guidelines", async (AppDbContext db) =>
 {
+
     var guideline = await db.BrandGuidelines.OrderByDescending(g => g.UpdatedAt).FirstOrDefaultAsync();
     if (guideline == null) return Results.NotFound();
     return Results.Ok(guideline);
@@ -520,4 +733,5 @@ record GeoLocations(string[] countries);
 
 record GeminiRequest(string Brief);
 record GeminiFollowUpRequest(string OriginalBrief, string[] PreviousQuestions, string[] PreviousAnswers);
+record RolePermissionUpdate(int RoleId, int[] ScreenIds);
 

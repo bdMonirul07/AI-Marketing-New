@@ -288,3 +288,37 @@
   - [x] Create necessary tables for campaigns, users, and brand guidelines within the **MarketingAI** database.
   - [x] Update the C# backend to use PostgreSQL instead of JSON-based storage.
   - [x] Perform data migration from existing JSON files to the new database.
+
+## User & Role Management System
+
+- [ ] **Step 53: Implement User and Role Management System**
+  - [x] Create `Users` table in PostgreSQL with fields for `Username`, `PasswordHash`, `Role`, and `Email`.
+  - [x] Implement backend authentication logic (e.g., JWT).
+  - [x] Create a dedicated Login Screen in the frontend.
+  - [x] Implement a "Logout" (Terminate Session) option in the sidebar.
+  - [ ] Implement Role-Based Access Control (RBAC) to restrict screen access based on user roles.
+  - [ ] Update "Role Management" screen for Admins to include User CRUD (Create, Read, Update, Delete) operations.
+
+- [x] **Step 55: Multi-Mode Theme Support (Dark, Light, Blue)**
+  - [x] Define color variables for Dark, Light, and Blue modes in `style.css`.
+  - [x] Implement a "Theme Switcher" in the sidebar or header.
+  - [x] Add logic to `main.js` to persist selected theme in `localStorage`.
+  - [x] Ensure all components (cards, inputs, nav) adapt smoothly to different modes.
+
+- [x] **Step 54: Seed Initial Users for Each Role**
+  - [x] Create Admin user (admin / 123456).
+  - [x] Create CMO user (cmo / 123456).
+  - [x] Create PPC Specialist user (ppc / 123456).
+  - [x] Create Marketing Expert user (expert / 123456).
+  - [x] Verify database persistence.
+
+- [ ] **Step 56: Implement Persistent RBAC System**
+  - [ ] Create `Roles` and `Screens` tables in PostgreSQL.
+  - [ ] Establish a relationship between Roles and Screens (Permissions).
+  - [ ] Create a backend endpoint to manage role-screen assignments.
+  - [ ] Update Frontend to fetch role permissions dynamically from the database.
+  - [ ] Implement a UI in the Admin "Role Management" screen to assign roles to users and screens to roles.
+
+
+
+

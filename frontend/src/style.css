@@ -1,21 +1,56 @@
 @import "tailwindcss";
 
+:root {
+  /* Dark Mode (Default) */
+  --bg-color: #0B0E14;
+  --bg-secondary: #0F1219;
+  --text-color: #FFFFFF;
+  --text-dim: #94A3B8;
+  --border-color: #1F2430;
+  --accent-color: #00F3FF;
+  --card-bg: #151921;
+  --input-bg: #0B0E14;
+}
+
+body.theme-light {
+  --bg-color: #F1F5F9;
+  --bg-secondary: #FFFFFF;
+  --text-color: #0F172A;
+  --text-dim: #64748B;
+  --border-color: #CBD5E1;
+  --accent-color: #2563EB;
+  --card-bg: #FFFFFF;
+  --input-bg: #E2E8F0;
+}
+
+body.theme-blue {
+  --bg-color: #0F172A;
+  --bg-secondary: #1E293B;
+  --text-color: #F8FAFC;
+  --text-dim: #94A3B8;
+  --border-color: #334155;
+  --accent-color: #38BDF8;
+  --card-bg: #1E293B;
+  --input-bg: #0F172A;
+}
+
 @theme {
-  --color-primary: #00f3ff;
+  --color-primary: var(--accent-color);
   --color-secondary: #bf00ff;
   --color-accent: #ff007f;
-  --color-background-dark: #0B0E14;
-  --color-card-dark: #151921;
+  --color-background-dark: var(--bg-color);
+  --color-card-dark: var(--card-bg);
   --font-inter: "Inter", sans-serif;
 }
 
 @layer base {
   body {
-    background-color: var(--color-background-dark);
-    color: white;
+    background-color: var(--bg-color);
+    color: var(--text-color);
     font-family: var(--font-inter);
     margin: 0;
     overflow-x: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   /* Custom Scrollbar for premium feel */

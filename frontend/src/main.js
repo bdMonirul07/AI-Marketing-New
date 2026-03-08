@@ -7,6 +7,9 @@ const API_BASE = 'http://localhost:5243/api'
 const state = {
   activeRole: 'Expert',
   activeScreen: 'Objective',
+  isAuthenticated: false,
+  user: null,
+  token: null,
   isLoadingStrategy: false,
   strategyLoadingMessage: 'Analyzing Brand DNA...',
   marketingData: {
@@ -158,11 +161,42 @@ const roleSwitcherBtn = document.getElementById('role-switcher-btn')
 const roleDropdown = document.getElementById('role-dropdown')
 const userInitial = document.getElementById('user-initial')
 const userName = document.getElementById('user-name')
+const logoutBtn = document.getElementById('logout-btn')
+const themeButtons = {
+  dark: document.getElementById('theme-dark'),
+  light: document.getElementById('theme-light'),
+  blue: document.getElementById('theme-blue')
+}
 
 // --- Utils ---
 function toggleDropdown() {
   roleDropdown.classList.toggle('hidden')
 }
+
+function setTheme(theme) {
+  document.body.classList.remove('theme-light', 'theme-blue')
+  if (theme !== 'dark') {
+    document.body.classList.add(`theme-${theme}`)
+  }
+
+  // Highlight active button
+  Object.keys(themeButtons).forEach(t => {
+    if (themeButtons[t]) {
+      themeButtons[t].classList.toggle('bg-white/10', t === theme)
+      themeButtons[t].classList.toggle('border', t === theme)
+      themeButtons[t].classList.toggle('border-white/20', t === theme)
+    }
+  })
+
+  localStorage.setItem('mt_theme', theme)
+}
+
+// Attach Theme Listeners
+Object.keys(themeButtons).forEach(theme => {
+  if (themeButtons[theme]) {
+    themeButtons[theme].onclick = () => setTheme(theme)
+  }
+})
 
 function switchRole(roleId) {
   state.activeRole = roleId
@@ -170,6 +204,17 @@ function switchRole(roleId) {
   roleDropdown.classList.add('hidden')
   updateUI()
 }
+
+function handleLogout() {
+  state.isAuthenticated = false
+  state.user = null
+  state.token = null
+  localStorage.removeItem('mt_token')
+  localStorage.removeItem('mt_user')
+  updateUI()
+}
+
+if (logoutBtn) logoutBtn.onclick = handleLogout
 
 function switchScreen(screenId) {
   state.activeScreen = screenId
@@ -182,7 +227,7 @@ function showNotification(message, type = 'success') {
   overlay.id = 'notification-overlay'
 
   overlay.innerHTML = `
-    <div class="bg-[#0B0F15] border border-white/10 p-8 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-sm w-full mx-6 text-center space-y-6 animate-in zoom-in-95 duration-300">
+    <div class="bg-[var(--bg-secondary)] border border-white/10 p-8 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-sm w-full mx-6 text-center space-y-6 animate-in zoom-in-95 duration-300">
         <div class="w-16 h-16 ${type === 'success' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-rose-500/10 text-rose-500 border-rose-500/20'} rounded-full flex items-center justify-center mx-auto border-2 text-2xl">
             ${type === 'success' ? '✓' : '⚠'}
         </div>
@@ -269,15 +314,26 @@ async function savePpcQueue() {
 
 // --- UI Rendering ---
 function updateUI() {
+  if (!state.isAuthenticated) {
+    renderLoginScreen()
+    document.querySelector('aside').classList.add('hidden')
+    document.querySelector('header').classList.add('hidden')
+    return
+  }
+
+  document.querySelector('aside').classList.remove('hidden')
+  document.querySelector('header').classList.remove('hidden')
+
   const currentRole = roles[state.activeRole]
   const currentScreen = currentRole.screens.find(s => s.id === state.activeScreen) || currentRole.screens[0]
+  state.activeScreen = currentScreen.id
 
   // Update Header & Sidebar
   activeRoleDisplay.innerText = currentRole.displayName
   activeRoleIcon.innerText = currentRole.icon
   activeRoleIcon.className = `w-8 h-8 rounded-full bg-${currentRole.themeColor}-900/50 flex items-center justify-center text-${currentRole.themeColor}-400 font-bold border border-${currentRole.themeColor}-500/30`
-  userInitial.innerText = currentRole.icon
-  userName.innerText = `${currentRole.displayName.split(' ')[1]} User`
+  userInitial.innerText = state.user?.username ? state.user.username[0].toUpperCase() : currentRole.icon
+  userName.innerText = state.user?.username || `${currentRole.displayName.split(' ')[1]} User`
 
   pageTitleName.innerText = currentScreen.id
 
@@ -365,6 +421,9 @@ function renderScreen(screenId) {
     case 'DeploySelection':
       renderDeploySelectionScreen()
       break
+    case 'Login':
+      renderLoginScreen()
+      break
     default:
       contentContainer.innerHTML = `<div class="flex items-center justify-center h-full"><h2 class="text-2xl text-gray-500">${screenId} Coming Soon...</h2></div>`
   }
@@ -382,8 +441,8 @@ function renderObjectiveScreen() {
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         ${['Reach', 'Click', 'Sell'].map(goal => `
-          <button class="objective-card group bg-[#151921] border-2 ${state.marketingData.objective === goal ? 'border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.15)]' : 'border-[#2A2F3A]'} p-6 rounded-2xl transition-all hover:scale-102 hover:border-cyan-400 text-center" data-goal="${goal}">
-            <div class="w-12 h-12 mx-auto mb-4 rounded-xl bg-gray-800 flex items-center justify-center group-hover:bg-cyan-900/30 transition-colors">
+          <button class="objective-card group bg-[var(--card-bg)] border-2 ${state.marketingData.objective === goal ? 'border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.15)]' : 'border-[var(--border-color)]'} p-6 rounded-2xl transition-all hover:scale-102 hover:border-cyan-400 text-center" data-goal="${goal}">
+            <div class="w-12 h-12 mx-auto mb-4 rounded-xl bg-[var(--bg-color)] flex items-center justify-center group-hover:bg-cyan-900/30 transition-colors">
               <span class="text-2xl">${goal === 'Reach' ? '👁️' : goal === 'Click' ? '🖱️' : '🛍️'}</span>
             </div>
             <h3 class="text-xl font-bold mb-1">${goal}</h3>
@@ -414,7 +473,7 @@ function renderObjectiveScreen() {
 function renderTargetingScreen() {
   contentContainer.innerHTML = `
     <div class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div class="lg:col-span-2 bg-[#151921] p-6 rounded-2xl border border-[#2A2F3A] space-y-5">
+      <div class="lg:col-span-2 bg-[var(--card-bg)] p-6 rounded-2xl border border-[var(--border-color)] space-y-5">
         <h3 class="text-lg font-bold flex items-center gap-2">
           <span class="w-6 h-6 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-sm">+</span>
           New Target Set
@@ -423,7 +482,7 @@ function renderTargetingScreen() {
         <div class="grid grid-cols-2 gap-4">
           <div class="space-y-1.5">
             <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Country</label>
-            <select id="t-country" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-2.5 rounded-lg focus:border-cyan-500 outline-none text-sm">
+            <select id="t-country" class="w-full bg-[var(--input-bg)] border border-[var(--border-color)] p-2.5 rounded-lg focus:border-cyan-500 outline-none text-sm">
               <option>United States</option>
               <option>United Kingdom</option>
               <option>Germany</option>
@@ -431,7 +490,7 @@ function renderTargetingScreen() {
           </div>
           <div class="space-y-1.5">
             <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Language</label>
-            <select id="t-language" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-2.5 rounded-lg focus:border-cyan-500 outline-none text-sm">
+            <select id="t-language" class="w-full bg-[var(--input-bg)] border border-[var(--border-color)] p-2.5 rounded-lg focus:border-cyan-500 outline-none text-sm">
               <option>English</option>
               <option>Spanish</option>
               <option>French</option>
@@ -441,7 +500,7 @@ function renderTargetingScreen() {
 
         <div class="space-y-3">
              <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Specific Area (Optional)</label>
-             <button class="w-full h-24 bg-[#0B0E14] border-2 border-dashed border-[#2A2F3A] rounded-xl flex flex-col items-center justify-center text-gray-500 hover:text-cyan-400 hover:border-cyan-500/50 transition-all text-sm">
+             <button class="w-full h-24 bg-[var(--bg-color)] border-2 border-dashed border-[var(--border-color)] rounded-xl flex flex-col items-center justify-center text-gray-500 hover:text-cyan-400 hover:border-cyan-500/50 transition-all text-sm">
                 <span class="text-xl mb-1">🗺️</span>
                 <span>Select from Maps</span>
              </button>
@@ -451,14 +510,14 @@ function renderTargetingScreen() {
           <div class="space-y-1.5">
             <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Age Range</label>
             <div class="flex items-center space-x-2">
-              <input type="number" id="t-age-min" value="18" class="w-1/2 bg-[#0B0E14] border border-[#2A2F3A] p-2.5 rounded-lg outline-none text-sm">
+              <input type="number" id="t-age-min" value="18" class="w-1/2 bg-[var(--input-bg)] border border-[var(--border-color)] p-2.5 rounded-lg outline-none text-sm">
               <span class="text-xs text-gray-500">to</span>
-              <input type="number" id="t-age-max" value="65" class="w-1/2 bg-[#0B0E14] border border-[#2A2F3A] p-2.5 rounded-lg outline-none text-sm">
+              <input type="number" id="t-age-max" value="65" class="w-1/2 bg-[var(--input-bg)] border border-[var(--border-color)] p-2.5 rounded-lg outline-none text-sm">
             </div>
           </div>
           <div class="space-y-1.5">
             <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Gender</label>
-            <div class="flex bg-[#0B0E14] p-1 rounded-lg border border-[#2A2F3A]">
+            <div class="flex bg-[var(--input-bg)] p-1 rounded-lg border border-[var(--border-color)]">
               ${['All', 'Male', 'Female'].map(g => `<button class="gender-btn flex-1 py-1.5 rounded-md text-xs font-bold ${g === 'All' ? 'bg-cyan-500 text-white' : 'text-gray-500 hover:text-white'} transition-all" data-gender="${g}">${g}</button>`).join('')}
             </div>
           </div>
@@ -469,15 +528,15 @@ function renderTargetingScreen() {
         </button>
       </div>
 
-      <div class="bg-[#151921] p-6 rounded-2xl border border-[#2A2F3A] flex flex-col">
+      <div class="bg-[var(--card-bg)] p-6 rounded-2xl border border-[var(--border-color)] flex flex-col">
         <h3 class="text-lg font-bold mb-4 flex items-center justify-between">
           Your Target Sets
-          <span class="text-[10px] bg-gray-800 px-2 py-0.5 rounded text-gray-400" id="target-count">${state.marketingData.targeting.length}</span>
+          <span class="text-[10px] bg-[var(--bg-color)] px-2 py-0.5 rounded text-gray-400" id="target-count">${state.marketingData.targeting.length}</span>
         </h3>
         
         <div id="target-list" class="flex-1 space-y-3 overflow-y-auto max-h-[300px] mb-4">
           ${state.marketingData.targeting.length === 0 ? '<p class="text-gray-500 italic text-center py-6 text-xs">No target sets added yet.</p>' : state.marketingData.targeting.map((t, idx) => `
-            <div class="p-3 bg-[#0B0E14] border border-[#2A2F3A] rounded-xl relative group">
+            <div class="p-3 bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl relative group">
               <button class="remove-target absolute top-2 right-2 text-gray-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all" data-index="${idx}">✕</button>
               <p class="text-xs font-bold text-cyan-400">${t.country} - ${t.language}</p>
               <p class="text-[10px] text-gray-500">Age: ${t.ageMin}-${t.ageMax} | ${t.gender}</p>
@@ -546,10 +605,10 @@ function renderStrategyHub() {
             <h2 class="text-3xl font-black uppercase tracking-tighter">Research & Strategy</h2>
             <p class="text-gray-500 text-sm font-medium">AI-driven diagnostic framework</p>
             
-            <div class="bg-[#151921] p-8 rounded-[30px] border border-[#2A2F3A] space-y-6 text-left shadow-2xl">
+            <div class="bg-[var(--card-bg)] p-8 rounded-[30px] border border-[var(--border-color)] space-y-6 text-left shadow-2xl">
                 <div class="space-y-3">
                     <label class="text-xs font-black text-gray-400 uppercase tracking-widest">Generation brief</label>
-                    <textarea id="hub-goal" class="w-full h-32 bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-2xl outline-none focus:border-rose-500 transition-all text-white placeholder:text-gray-800 text-sm" placeholder="e.g. I want to increase brand awareness...">${state.marketingData.goal}</textarea>
+                    <textarea id="hub-goal" class="w-full h-32 bg-[var(--bg-color)] border border-[var(--border-color)] p-4 rounded-2xl outline-none focus:border-rose-500 transition-all text-white placeholder:text-gray-800 text-sm" placeholder="e.g. I want to increase brand awareness...">${state.marketingData.goal}</textarea>
                 </div>
                 
                 <button id="btn-strategy-1" class="w-full py-4 bg-gradient-to-r from-rose-500 to-purple-600 hover:from-rose-400 hover:to-purple-500 text-white font-black rounded-xl transition-all shadow-xl flex flex-col items-center justify-center gap-1 text-base uppercase tracking-widest disabled:opacity-50" ${isLoading ? 'disabled' : ''}>
@@ -565,13 +624,13 @@ function renderStrategyHub() {
                 <p class="text-gray-500 text-xs font-medium italic">Conceptual diagnostics based on your brief.</p>
             </div>
 
-            <div class="bg-[#151921] border border-[#2A2F3A] rounded-[30px] p-8 shadow-2xl space-y-8">
+            <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[30px] p-8 shadow-2xl space-y-8">
                 <div class="space-y-6">
                     ${state.marketingData.level1Questions.map((q, i) => `
                         <div class="space-y-2">
                             <label class="text-[9px] font-black text-cyan-500/50 uppercase tracking-widest mb-1 block">Question 0${i + 1}</label>
                             <p class="text-sm font-bold text-gray-200 mb-2">${q}</p>
-                            <input type="text" value="${state.marketingData.level1Answers[i]}" class="probe-l1-input w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-cyan-500 text-white text-sm" data-index="${i}" placeholder="Enter your response...">
+                            <input type="text" value="${state.marketingData.level1Answers[i]}" class="probe-l1-input w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-cyan-500 text-white text-sm" data-index="${i}" placeholder="Enter your response...">
                         </div>
                     `).join('')}
                 </div>
@@ -592,13 +651,13 @@ function renderStrategyHub() {
                 <p class="text-gray-500 text-xs font-medium italic">Advanced psychological campaign pillars.</p>
             </div>
 
-            <div class="bg-[#151921] border border-[#2A2F3A] rounded-[30px] p-8 shadow-2xl space-y-8">
+            <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[30px] p-8 shadow-2xl space-y-8">
                 <div class="space-y-6">
                     ${state.marketingData.level2Questions.map((q, i) => `
                         <div class="space-y-2">
                             <label class="text-[9px] font-black text-purple-500/50 uppercase tracking-widest mb-1 block">Deep Dive 0${i + 1}</label>
                             <p class="text-sm font-bold text-gray-200 mb-2">${q}</p>
-                            <input type="text" value="${state.marketingData.level2Answers[i]}" class="probe-l2-input w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-white text-sm" data-index="${i}" placeholder="Enter final thoughts...">
+                            <input type="text" value="${state.marketingData.level2Answers[i]}" class="probe-l2-input w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-white text-sm" data-index="${i}" placeholder="Enter final thoughts...">
                         </div>
                     `).join('')}
                 </div>
@@ -770,10 +829,10 @@ ${l2.length ? '\n[PSYCHOLOGICAL PILLARS]\n' + l2.map((q, i) => `Q: ${q}\nA: ${st
             <p class="text-gray-500 text-xs font-medium">AI orchestration & content config.</p>
         </div>
 
-        <div class="bg-[#151921] border border-[#2A2F3A] rounded-2xl p-6 shadow-2xl space-y-6">
+        <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-6 shadow-2xl space-y-6">
             <div class="space-y-2">
                 <label class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Generation brief</label>
-                <textarea id="config-goal" class="w-full h-48 bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-rose-500 transition-all text-gray-400 font-medium leading-relaxed font-mono text-[10px]" placeholder="AI brief...">${consolidatedBrief}</textarea>
+                <textarea id="config-goal" class="w-full h-48 bg-[var(--bg-color)] border border-[var(--border-color)] p-4 rounded-xl outline-none focus:border-rose-500 transition-all text-gray-400 font-medium leading-relaxed font-mono text-[10px]" placeholder="AI brief...">${consolidatedBrief}</textarea>
                 <div class="flex justify-start">
                     <button class="px-5 py-2 bg-rose-600/20 text-rose-500 border border-rose-500/30 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">Analyze Strategy 🚀</button>
                 </div>
@@ -799,7 +858,7 @@ ${l2.length ? '\n[PSYCHOLOGICAL PILLARS]\n' + l2.map((q, i) => `Q: ${q}\nA: ${st
                     <h3 class="text-base font-black text-white uppercase tracking-tight">Aspect Ratio</h3>
                     <div class="flex gap-2">
                         ${['1:1', '16:9', '9:16'].map(ratio => `
-                            <button class="aspect-ratio-btn flex-1 py-3 rounded-lg font-black text-xs transition-all ${state.marketingData.aspectRatio === ratio ? 'bg-[#0B0E14] text-white ring-2 ring-white' : 'bg-white text-black shadow-lg hover:bg-gray-100'}" data-ratio="${ratio}">
+                            <button class="aspect-ratio-btn flex-1 py-3 rounded-lg font-black text-xs transition-all ${state.marketingData.aspectRatio === ratio ? 'bg-[var(--bg-color)] text-white ring-2 ring-white' : 'bg-white text-black shadow-lg hover:bg-gray-100'}" data-ratio="${ratio}">
                                 ${ratio}
                             </button>
                         `).join('')}
@@ -817,7 +876,7 @@ ${l2.length ? '\n[PSYCHOLOGICAL PILLARS]\n' + l2.map((q, i) => `Q: ${q}\nA: ${st
                     
                     <div class="space-y-2">
                         <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Upload</p>
-                        <div class="bg-[#0B0E14] border border-[#2A2F3A] p-2.5 rounded-lg flex items-center gap-2">
+                        <div class="bg-[var(--bg-color)] border border-[var(--border-color)] p-2.5 rounded-lg flex items-center gap-2">
                             <input type="file" id="asset-upload" class="hidden">
                             <button onclick="document.getElementById('asset-upload').click()" class="bg-gray-800 hover:bg-gray-700 text-white px-2 py-1 rounded-md text-[9px] font-bold transition-all">Choose</button>
                             <span class="text-[9px] text-gray-500">No file</span>
@@ -827,7 +886,7 @@ ${l2.length ? '\n[PSYCHOLOGICAL PILLARS]\n' + l2.map((q, i) => `Q: ${q}\nA: ${st
                     <div class="space-y-2">
                         <p class="text-[9px] font-black text-gray-400 uppercase tracking-widest">URL</p>
                         <div class="flex gap-2">
-                            <input type="text" class="flex-1 bg-[#0B0E14] border border-[#2A2F3A] p-2.5 rounded-lg outline-none focus:border-rose-500 text-white text-[10px]" placeholder="https://...">
+                            <input type="text" class="flex-1 bg-[var(--bg-color)] border border-[var(--border-color)] p-2.5 rounded-lg outline-none focus:border-rose-500 text-white text-[10px]" placeholder="https://...">
                             <button class="bg-white text-black px-3 py-2 rounded-lg font-black text-[9px] uppercase tracking-widest hover:bg-rose-500 hover:text-white transition-all">ADD</button>
                         </div>
                     </div>
@@ -843,16 +902,16 @@ ${l2.length ? '\n[PSYCHOLOGICAL PILLARS]\n' + l2.map((q, i) => `Q: ${q}\nA: ${st
                     <div class="grid grid-cols-2 gap-3">
                         <div class="space-y-1">
                             <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Photos</label>
-                            <input type="number" value="${state.marketingData.generationPhotos}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-2 rounded-lg outline-none focus:border-cyan-500 text-lg font-black text-white" onchange="state.marketingData.generationPhotos = this.value">
+                            <input type="number" value="${state.marketingData.generationPhotos}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-2 rounded-lg outline-none focus:border-cyan-500 text-lg font-black text-white" onchange="state.marketingData.generationPhotos = this.value">
                         </div>
                         <div class="space-y-1">
                             <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Videos</label>
-                            <input type="number" value="${state.marketingData.generationVideos}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-2 rounded-lg outline-none focus:border-cyan-500 text-lg font-black text-white" onchange="state.marketingData.generationVideos = this.value">
+                            <input type="number" value="${state.marketingData.generationVideos}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-2 rounded-lg outline-none focus:border-cyan-500 text-lg font-black text-white" onchange="state.marketingData.generationVideos = this.value">
                         </div>
                     </div>
                     <div class="space-y-1">
                         <label class="text-[9px] font-black text-gray-400 uppercase tracking-widest">Posts</label>
-                        <input type="number" value="${state.marketingData.generationPosts}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-2 rounded-lg outline-none focus:border-cyan-500 text-lg font-black text-white" onchange="state.marketingData.generationPosts = this.value">
+                        <input type="number" value="${state.marketingData.generationPosts}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-2 rounded-lg outline-none focus:border-cyan-500 text-lg font-black text-white" onchange="state.marketingData.generationPosts = this.value">
                     </div>
                 </div>
             </div>
@@ -969,7 +1028,7 @@ async function renderStudioScreen() {
 
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               ${variations.map(v => `
-                  <div class="group bg-[#151921] border border-[#2A2F3A] rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all flex flex-col">
+                  <div class="group bg-[var(--card-bg)] border border-[var(--border-color)] rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all flex flex-col">
                       <div class="aspect-video relative overflow-hidden bg-black flex items-center justify-center">
                           ${v.type === 'video' ? `
                               <video src="${v.url}" class="w-full h-full object-contain" controls></video>
@@ -1074,7 +1133,7 @@ function renderMonitoringScreen() {
       { label: 'Total Spend', val: '$12,482', icon: '💰', trend: '+8%' },
       { label: 'Efficiency %', val: '94.2%', icon: '⚡', trend: '+2%' }
     ].map(s => `
-                <div class="bg-[#151921] p-5 rounded-2xl border border-[#2A2F3A] relative overflow-hidden group">
+                <div class="bg-[var(--card-bg)] p-5 rounded-2xl border border-[var(--border-color)] relative overflow-hidden group">
                     <div class="absolute -right-2 -top-2 text-4xl opacity-5 group-hover:opacity-10 transition-opacity">${s.icon === '💰' ? '💵' : '📈'}</div>
                     <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">${s.label}</p>
                     <h3 class="text-2xl font-black">${s.val}</h3>
@@ -1083,8 +1142,8 @@ function renderMonitoringScreen() {
             `).join('')}
         </div>
 
-        <div class="bg-[#151921] border border-[#2A2F3A] rounded-2xl overflow-hidden">
-            <div class="p-4 border-b border-[#2A2F3A] flex justify-between items-center">
+        <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl overflow-hidden">
+            <div class="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
                 <h3 class="font-bold uppercase tracking-widest text-xs">Performance Matrix</h3>
                 <div class="flex items-center gap-1.5">
                     <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
@@ -1093,7 +1152,7 @@ function renderMonitoringScreen() {
             </div>
             <div class="p-0 overflow-x-auto">
                 <table class="w-full text-left">
-                    <thead class="bg-[#0B0E14]/50 text-[10px] text-gray-500 uppercase font-black">
+                    <thead class="bg-[var(--bg-color)]/50 text-[10px] text-gray-500 uppercase font-black">
                         <tr>
                             <th class="px-6 py-4">Campaign Name</th>
                             <th class="px-6 py-4">ROI Index</th>
@@ -1163,7 +1222,7 @@ function renderConfigScreen() {
         </div>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
             ${['Facebook', 'Instagram', 'YouTube', 'TikTok'].map(p => `
-                <button class="platform-btn group bg-[#151921] border border-[#2A2F3A] p-6 rounded-2xl hover:border-purple-500 hover:bg-purple-500/5 transition-all flex flex-col items-center gap-3" data-platform="${p}">
+                <button class="platform-btn group bg-[var(--card-bg)] border border-[var(--border-color)] p-6 rounded-2xl hover:border-purple-500 hover:bg-purple-500/5 transition-all flex flex-col items-center gap-3" data-platform="${p}">
                     <div class="w-12 h-12 rounded-xl bg-purple-600/20 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                         ${p === 'Facebook' ? 'f' : p === 'Instagram' ? '📸' : p === 'YouTube' ? '▶️' : '🎵'}
                     </div>
@@ -1173,7 +1232,7 @@ function renderConfigScreen() {
         </div>
     </div>
     <div id="modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden">
-        <div id="modal-content" class="bg-[#151921] w-full max-w-md p-8 rounded-3xl border border-[#2A2F3A] space-y-6">
+        <div id="modal-content" class="bg-[var(--card-bg)] w-full max-w-md p-8 rounded-3xl border border-[var(--border-color)] space-y-6">
             <!-- Dynamic Content -->
         </div>
     </div>
@@ -1191,19 +1250,19 @@ function renderConfigScreen() {
         <div class="space-y-4">
             <div class="space-y-1">
                 <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Advertiser ID</label>
-                <input type="text" id="tt-adv-id" value="${config.advertiser_id}" placeholder="760097..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white shadow-inner">
+                <input type="text" id="tt-adv-id" value="${config.advertiser_id}" placeholder="760097..." class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white shadow-inner">
             </div>
             <div class="space-y-1">
                 <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Access Token</label>
-                <input type="password" id="tt-token" value="${config.access_token}" placeholder="act_..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white shadow-inner">
+                <input type="password" id="tt-token" value="${config.access_token}" placeholder="act_..." class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white shadow-inner">
             </div>
             <div class="space-y-1">
                 <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Pixel ID</label>
-                <input type="text" id="tt-pixel" value="${config.pixel_id}" placeholder="PXL_..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white shadow-inner">
+                <input type="text" id="tt-pixel" value="${config.pixel_id}" placeholder="PXL_..." class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white shadow-inner">
             </div>
             <div class="space-y-1">
                 <label class="text-[9px] font-black text-gray-500 uppercase tracking-widest">Identity ID</label>
-                <input type="text" id="tt-identity" value="${config.identity_id}" placeholder="ID_..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white shadow-inner">
+                <input type="text" id="tt-identity" value="${config.identity_id}" placeholder="ID_..." class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white shadow-inner">
             </div>
         </div>
         <div class="pt-4">
@@ -1225,8 +1284,8 @@ function renderConfigScreen() {
         <h3 class="text-2xl font-bold uppercase italic tracking-tighter text-white">Connect ${platform}</h3>
         <p class="text-gray-500 text-[10px] font-medium uppercase tracking-[0.1em]">Credential setup for ${platform} is currently under maintenance.</p>
         <div class="space-y-4 opacity-30 pointer-events-none">
-            <input type="text" placeholder="Account Name" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none text-sm">
-            <input type="password" placeholder="Key" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none text-sm">
+            <input type="text" placeholder="Account Name" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none text-sm">
+            <input type="password" placeholder="Key" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none text-sm">
         </div>
         <button id="modal-close" class="w-full py-3 bg-gray-800 rounded-xl font-bold uppercase tracking-widest text-[10px] text-gray-400">CLOSE</button>
       `
@@ -1256,35 +1315,35 @@ function renderCompanyProfileScreen() {
             <!-- Left Column: Core Info -->
             <div class="md:col-span-2 space-y-6">
                 <!-- Basic Info Card -->
-                <div class="bg-[#151921] border border-[#2A2F3A] p-8 rounded-3xl space-y-6">
+                <div class="bg-[var(--card-bg)] border border-[var(--border-color)] p-8 rounded-3xl space-y-6">
                     <h4 class="text-[10px] font-black text-purple-400 uppercase tracking-[0.2em] border-b border-purple-500/20 pb-2">Primary Information</h4>
                     
                     <div class="grid grid-cols-2 gap-6">
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Company Name</label>
-                            <input type="text" id="cp-name" value="${profile.name}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
+                            <input type="text" id="cp-name" value="${profile.name}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
                         </div>
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Industry / Niche</label>
-                            <input type="text" id="cp-industry" value="${profile.industry}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
+                            <input type="text" id="cp-industry" value="${profile.industry}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-6">
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Official Website</label>
-                            <input type="text" id="cp-website" value="${profile.website}" placeholder="https://..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
+                            <input type="text" id="cp-website" value="${profile.website}" placeholder="https://..." class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
                         </div>
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">HQ Location</label>
-                            <input type="text" id="cp-location" value="${profile.location}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
+                            <input type="text" id="cp-location" value="${profile.location}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-6">
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Employee Count</label>
-                            <select id="cp-employees" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
+                            <select id="cp-employees" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
                                 <option value="1-10" ${profile.employeeCount === '1-10' ? 'selected' : ''}>1-10 (Startup)</option>
                                 <option value="11-50" ${profile.employeeCount === '11-50' ? 'selected' : ''}>11-50 (SME)</option>
                                 <option value="51-200" ${profile.employeeCount === '51-200' ? 'selected' : ''}>51-200 (Growth)</option>
@@ -1293,28 +1352,28 @@ function renderCompanyProfileScreen() {
                         </div>
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Founding Year</label>
-                            <input type="number" id="cp-founding" value="${profile.foundingYear}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
+                            <input type="number" id="cp-founding" value="${profile.foundingYear}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-4 rounded-xl outline-none focus:border-purple-500 text-sm font-bold text-white transition-all">
                         </div>
                     </div>
                 </div>
 
                 <!-- Strategic Narrative Card -->
-                <div class="bg-[#151921] border border-[#2A2F3A] p-8 rounded-3xl space-y-6">
+                <div class="bg-[var(--card-bg)] border border-[var(--border-color)] p-8 rounded-3xl space-y-6">
                     <h4 class="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em] border-b border-emerald-500/20 pb-2">Strategic Narrative</h4>
                     
                     <div class="space-y-1">
                         <label class="text-[8px] font-black text-gray-500 uppercase">About the Company</label>
-                        <textarea id="cp-about" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-2xl outline-none focus:border-emerald-500 text-sm font-medium text-gray-300 min-h-[120px] transition-all" placeholder="Describe your company's core values...">${profile.about}</textarea>
+                        <textarea id="cp-about" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-4 rounded-2xl outline-none focus:border-emerald-500 text-sm font-medium text-gray-300 min-h-[120px] transition-all" placeholder="Describe your company's core values...">${profile.about}</textarea>
                     </div>
 
                     <div class="grid grid-cols-2 gap-6">
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Mission Statement</label>
-                            <textarea id="cp-mission" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-2xl outline-none focus:border-emerald-500 text-sm font-medium text-gray-300 min-h-[80px] transition-all">${profile.mission}</textarea>
+                            <textarea id="cp-mission" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-4 rounded-2xl outline-none focus:border-emerald-500 text-sm font-medium text-gray-300 min-h-[80px] transition-all">${profile.mission}</textarea>
                         </div>
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Vision Statement</label>
-                            <textarea id="cp-vision" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-4 rounded-2xl outline-none focus:border-emerald-500 text-sm font-medium text-gray-300 min-h-[80px] transition-all">${profile.vision}</textarea>
+                            <textarea id="cp-vision" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-4 rounded-2xl outline-none focus:border-emerald-500 text-sm font-medium text-gray-300 min-h-[80px] transition-all">${profile.vision}</textarea>
                         </div>
                     </div>
                 </div>
@@ -1322,7 +1381,7 @@ function renderCompanyProfileScreen() {
 
             <!-- Right Column: Social & Presence -->
             <div class="space-y-6">
-                <div class="bg-[#151921] border border-[#2A2F3A] p-8 rounded-3xl space-y-6 sticky top-8">
+                <div class="bg-[var(--card-bg)] border border-[var(--border-color)] p-8 rounded-3xl space-y-6 sticky top-8">
                     <h4 class="text-[10px] font-black text-cyan-400 uppercase tracking-[0.2em] border-b border-cyan-500/20 pb-2">Social Ecosystem</h4>
                     
                     <div class="space-y-4">
@@ -1331,7 +1390,7 @@ function renderCompanyProfileScreen() {
                                 <span class="w-4 h-4 bg-[#1877F2]/20 rounded flex items-center justify-center text-[#1877F2]">f</span>
                                 Facebook Page
                             </label>
-                            <input type="text" id="cp-fb" value="${profile.socialLinks.facebook}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-[#1877F2] text-xs font-bold text-white transition-all">
+                            <input type="text" id="cp-fb" value="${profile.socialLinks.facebook}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-[#1877F2] text-xs font-bold text-white transition-all">
                         </div>
 
                         <div class="space-y-1">
@@ -1339,7 +1398,7 @@ function renderCompanyProfileScreen() {
                                 <span class="w-4 h-4 bg-[#E4405F]/20 rounded flex items-center justify-center text-[#E4405F]">i</span>
                                 Instagram Handle
                             </label>
-                            <input type="text" id="cp-ig" value="${profile.socialLinks.instagram}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-[#E4405F] text-xs font-bold text-white transition-all">
+                            <input type="text" id="cp-ig" value="${profile.socialLinks.instagram}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-[#E4405F] text-xs font-bold text-white transition-all">
                         </div>
 
                         <div class="space-y-1">
@@ -1347,7 +1406,7 @@ function renderCompanyProfileScreen() {
                                 <span class="w-4 h-4 bg-[#0A66C2]/20 rounded flex items-center justify-center text-[#0A66C2]">in</span>
                                 LinkedIn Profile
                             </label>
-                            <input type="text" id="cp-li" value="${profile.socialLinks.linkedin}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-[#0A66C2] text-xs font-bold text-white transition-all">
+                            <input type="text" id="cp-li" value="${profile.socialLinks.linkedin}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-[#0A66C2] text-xs font-bold text-white transition-all">
                         </div>
 
                         <div class="space-y-1">
@@ -1355,17 +1414,17 @@ function renderCompanyProfileScreen() {
                                 <span class="w-4 h-4 bg-[#1DA1F2]/20 rounded flex items-center justify-center text-[#1DA1F2]">t</span>
                                 Twitter / X
                             </label>
-                            <input type="text" id="cp-tw" value="${profile.socialLinks.twitter}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-[#1DA1F2] text-xs font-bold text-white transition-all">
+                            <input type="text" id="cp-tw" value="${profile.socialLinks.twitter}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-[#1DA1F2] text-xs font-bold text-white transition-all">
                         </div>
                     </div>
 
                     <!-- Profile Completeness Mockup -->
-                    <div class="pt-6 border-t border-[#2A2F3A] space-y-3">
+                    <div class="pt-6 border-t border-[var(--border-color)] space-y-3">
                         <div class="flex justify-between items-center text-[8px] font-black uppercase tracking-widest">
                             <span class="text-gray-500">Profile Completeness</span>
                             <span class="text-purple-500">75%</span>
                         </div>
-                        <div class="h-1.5 w-full bg-[#0B0E14] rounded-full overflow-hidden">
+                        <div class="h-1.5 w-full bg-[var(--bg-color)] rounded-full overflow-hidden">
                             <div class="h-full bg-gradient-to-r from-purple-600 to-cyan-500 w-[75%] rounded-full shadow-[0_0_10px_rgba(147,51,234,0.3)]"></div>
                         </div>
                     </div>
@@ -1417,7 +1476,7 @@ function renderRoleManagementScreen() {
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             ${roleStats.map(role => `
-                <div class="bg-[#151921] border border-[#2A2F3A] p-6 rounded-3xl hover:border-purple-500/30 transition-all group relative overflow-hidden">
+                <div class="bg-[var(--card-bg)] border border-[var(--border-color)] p-6 rounded-3xl hover:border-purple-500/30 transition-all group relative overflow-hidden">
                     <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-all"></div>
                     
                     <div class="flex items-start justify-between relative z-10">
@@ -1443,7 +1502,7 @@ function renderRoleManagementScreen() {
                         <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Enabled Modules</p>
                         <div class="flex flex-wrap gap-2">
                             ${role.screens.map(screen => `
-                                <span class="px-3 py-1 bg-[#0B0E14] border border-[#1F2430] rounded-full text-[9px] font-black text-gray-400 uppercase tracking-tighter flex items-center gap-1.5">
+                                <span class="px-3 py-1 bg-[var(--bg-color)] border border-[#1F2430] rounded-full text-[9px] font-black text-gray-400 uppercase tracking-tighter flex items-center gap-1.5">
                                     <span>${screen.icon}</span>
                                     <span>${screen.label}</span>
                                 </span>
@@ -1466,7 +1525,7 @@ function renderRoleManagementScreen() {
         </div>
 
         <!-- System Logs / Security Preview -->
-        <div class="bg-[#151921] border border-dashed border-[#2A2F3A] p-8 rounded-3xl">
+        <div class="bg-[var(--card-bg)] border border-dashed border-[var(--border-color)] p-8 rounded-3xl">
             <h3 class="text-sm font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
                 <span class="text-purple-500">🛡️</span> Security Access Logs
             </h3>
@@ -1493,9 +1552,9 @@ function renderCalendarScreen() {
   contentContainer.innerHTML = `
     <div class="h-full flex flex-col space-y-6">
         <h2 class="text-3xl font-black uppercase italic">Operations Calendar</h2>
-        <div class="flex-1 grid grid-cols-7 gap-px bg-[#2A2F3A] border border-[#2A2F3A] rounded-3xl overflow-hidden">
-            ${['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map(d => `<div class="bg-[#151921] p-4 text-center text-[10px] font-black text-gray-500">${d}</div>`).join('')}
-            ${Array.from({ length: 35 }).map((_, i) => `<div class="bg-[#0B0E14] p-4 min-h-[100px] hover:bg-white/5 transition-colors relative"><span class="text-xs font-bold text-gray-700">${(i % 31) + 1}</span></div>`).join('')}
+        <div class="flex-1 grid grid-cols-7 gap-px bg-[#2A2F3A] border border-[var(--border-color)] rounded-3xl overflow-hidden">
+            ${['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map(d => `<div class="bg-[var(--card-bg)] p-4 text-center text-[10px] font-black text-gray-500">${d}</div>`).join('')}
+            ${Array.from({ length: 35 }).map((_, i) => `<div class="bg-[var(--bg-color)] p-4 min-h-[100px] hover:bg-white/5 transition-colors relative"><span class="text-xs font-bold text-gray-700">${(i % 31) + 1}</span></div>`).join('')}
         </div>
     </div>
   `
@@ -1512,7 +1571,7 @@ function renderGuidelineScreen() {
                 </h1>
                 <p class="text-gray-500 italic mt-0.5 font-medium text-[10px] tracking-widest uppercase">AI PARAMETERS</p>
             </div>
-            <button class="bg-[#12161D] hover:bg-[#1A1F29] border border-[#2A2F3A] px-5 py-2 rounded-lg text-[10px] font-black tracking-widest flex items-center gap-2 transition-all shadow-xl">
+            <button class="bg-[#12161D] hover:bg-[#1A1F29] border border-[var(--border-color)] px-5 py-2 rounded-lg text-[10px] font-black tracking-widest flex items-center gap-2 transition-all shadow-xl">
                  <span class="text-base opacity-70">⏱</span> LOAD TEMPLATE
             </button>
         </div>
@@ -1520,18 +1579,18 @@ function renderGuidelineScreen() {
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <!-- Left Column: Primary Config -->
             <div class="lg:col-span-2 space-y-6">
-                <div class="bg-[#151921] border border-[#2A2F3A] p-6 rounded-2xl shadow-2xl space-y-6">
+                <div class="bg-[var(--card-bg)] border border-[var(--border-color)] p-6 rounded-2xl shadow-2xl space-y-6">
                     
                     <div class="space-y-2">
                         <label class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Brand Label</label>
-                        <input id="bg-label" type="text" value="${state.marketingData.brandGuidelines.brandLabel}" class="w-full bg-[#0B0E14] border border-indigo-500/30 p-4 rounded-xl outline-none focus:border-indigo-500 transition-all font-bold text-base shadow-inner text-white" placeholder="...">
+                        <input id="bg-label" type="text" value="${state.marketingData.brandGuidelines.brandLabel}" class="w-full bg-[var(--bg-color)] border border-indigo-500/30 p-4 rounded-xl outline-none focus:border-indigo-500 transition-all font-bold text-base shadow-inner text-white" placeholder="...">
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-2">
                             <label class="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Tone</label>
                             <div class="relative">
-                                <select id="bg-tone" class="w-full bg-[#12161D] text-white border border-[#2A2F3A] p-3 rounded-xl outline-none appearance-none font-bold focus:border-indigo-500 text-sm">
+                                <select id="bg-tone" class="w-full bg-[#12161D] text-white border border-[var(--border-color)] p-3 rounded-xl outline-none appearance-none font-bold focus:border-indigo-500 text-sm">
                                     <option ${state.marketingData.brandGuidelines.tone === 'Professional' ? 'selected' : ''}>Professional</option>
                                     <option ${state.marketingData.brandGuidelines.tone === 'Casual' ? 'selected' : ''}>Casual</option>
                                     <option ${state.marketingData.brandGuidelines.tone === 'Aggressive' ? 'selected' : ''}>Aggressive</option>
@@ -1542,7 +1601,7 @@ function renderGuidelineScreen() {
                         <div class="space-y-2">
                             <label class="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Language</label>
                             <div class="relative">
-                                <select id="bg-lang" class="w-full bg-[#12161D] text-white border border-[#2A2F3A] p-3 rounded-xl outline-none appearance-none font-bold focus:border-indigo-500 text-sm">
+                                <select id="bg-lang" class="w-full bg-[#12161D] text-white border border-[var(--border-color)] p-3 rounded-xl outline-none appearance-none font-bold focus:border-indigo-500 text-sm">
                                     <option ${state.marketingData.brandGuidelines.language === 'English' ? 'selected' : ''}>English</option>
                                     <option ${state.marketingData.brandGuidelines.language === 'Spanish' ? 'selected' : ''}>Spanish</option>
                                     <option ${state.marketingData.brandGuidelines.language === 'French' ? 'selected' : ''}>French</option>
@@ -1554,17 +1613,17 @@ function renderGuidelineScreen() {
 
                     <div class="space-y-2">
                         <label class="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Description</label>
-                        <textarea id="bg-desc" class="w-full h-32 bg-[#12161D] border border-[#2A2F3A] p-4 rounded-xl outline-none focus:border-indigo-500 transition-all text-white font-medium leading-relaxed shadow-sm text-sm" placeholder="Core essence...">${state.marketingData.brandGuidelines.description}</textarea>
+                        <textarea id="bg-desc" class="w-full h-32 bg-[#12161D] border border-[var(--border-color)] p-4 rounded-xl outline-none focus:border-indigo-500 transition-all text-white font-medium leading-relaxed shadow-sm text-sm" placeholder="Core essence...">${state.marketingData.brandGuidelines.description}</textarea>
                     </div>
 
                     <div class="grid grid-cols-2 gap-6">
                         <div class="space-y-3">
                             <h4 class="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em]">≋ WHITELIST</h4>
-                            <textarea id="bg-white" class="w-full h-24 bg-[#0B0E14] border-dashed border-2 border-emerald-500/20 p-3 rounded-xl outline-none focus:border-emerald-500/50 transition-all text-[10px] font-medium italic text-gray-400" placeholder="Prioritize...">${state.marketingData.brandGuidelines.whitelist}</textarea>
+                            <textarea id="bg-white" class="w-full h-24 bg-[var(--bg-color)] border-dashed border-2 border-emerald-500/20 p-3 rounded-xl outline-none focus:border-emerald-500/50 transition-all text-[10px] font-medium italic text-gray-400" placeholder="Prioritize...">${state.marketingData.brandGuidelines.whitelist}</textarea>
                         </div>
                         <div class="space-y-3">
                             <h4 class="text-[10px] font-black text-rose-500 uppercase tracking-[0.2em]">⦸ BLACKLIST</h4>
-                            <textarea id="bg-black" class="w-full h-24 bg-[#0B0E14] border-dashed border-2 border-rose-500/20 p-3 rounded-xl outline-none focus:border-rose-500/50 transition-all text-[10px] font-medium italic text-gray-400" placeholder="Forbidden...">${state.marketingData.brandGuidelines.blacklist}</textarea>
+                            <textarea id="bg-black" class="w-full h-24 bg-[var(--bg-color)] border-dashed border-2 border-rose-500/20 p-3 rounded-xl outline-none focus:border-rose-500/50 transition-all text-[10px] font-medium italic text-gray-400" placeholder="Forbidden...">${state.marketingData.brandGuidelines.blacklist}</textarea>
                         </div>
                     </div>
                 </div>
@@ -1573,7 +1632,7 @@ function renderGuidelineScreen() {
             <!-- Right Column: Visual DNA -->
             <div class="space-y-6">
                 <!-- Typography Card -->
-                <div class="bg-[#151921] p-6 rounded-2xl border border-[#2A2F3A] shadow-2xl space-y-4">
+                <div class="bg-[var(--card-bg)] p-6 rounded-2xl border border-[var(--border-color)] shadow-2xl space-y-4">
                     <h3 class="text-base font-black text-white uppercase tracking-tighter flex items-center gap-2">
                         <span class="text-indigo-600 text-lg font-serif italic font-black">T</span> TYPOGRAPHY
                     </h3>
@@ -1581,25 +1640,25 @@ function renderGuidelineScreen() {
                     <div class="space-y-4">
                         <div class="space-y-1.5">
                             <label class="text-[10px] font-black text-gray-500 uppercase">Heading Font</label>
-                            <div class="p-3 bg-[#0B0E14] border border-[#2A2F3A] rounded-xl text-gray-300 text-xs font-bold shadow-sm">Montserrat Bold</div>
+                            <div class="p-3 bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl text-gray-300 text-xs font-bold shadow-sm">Montserrat Bold</div>
                         </div>
                         <div class="space-y-1.5">
                             <label class="text-[10px] font-black text-gray-500 uppercase">Heading Size</label>
-                            <div class="p-3 bg-[#0B0E14] border border-[#2A2F3A] rounded-xl text-gray-300 text-xs font-bold shadow-sm">32px</div>
+                            <div class="p-3 bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl text-gray-300 text-xs font-bold shadow-sm">32px</div>
                         </div>
                         <div class="space-y-1.5">
                             <label class="text-[10px] font-black text-gray-500 uppercase">Body Font</label>
-                            <div class="p-3 bg-[#0B0E14] border border-[#2A2F3A] rounded-xl text-gray-300 text-xs font-bold shadow-sm">Roboto Regular</div>
+                            <div class="p-3 bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl text-gray-300 text-xs font-bold shadow-sm">Roboto Regular</div>
                         </div>
                         <div class="space-y-1.5">
                             <label class="text-[10px] font-black text-gray-500 uppercase">Body Size</label>
-                            <div class="p-3 bg-[#0B0E14] border border-[#2A2F3A] rounded-xl text-gray-300 text-xs font-bold shadow-sm">16px</div>
+                            <div class="p-3 bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl text-gray-300 text-xs font-bold shadow-sm">16px</div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Palette Card -->
-                <div class="bg-[#151921] p-6 rounded-2xl border border-[#2A2F3A] shadow-2xl space-y-4">
+                <div class="bg-[var(--card-bg)] p-6 rounded-2xl border border-[var(--border-color)] shadow-2xl space-y-4">
                     <h3 class="text-base font-black text-white uppercase tracking-tighter flex items-center gap-2">
                         <span class="text-purple-600 text-lg font-black">❂</span> PALETTE
                     </h3>
@@ -1614,7 +1673,7 @@ function renderGuidelineScreen() {
                 </div>
 
                 <div class="flex gap-3">
-                     <button class="flex-1 py-3 bg-transparent border-2 border-[#2A2F3A] rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-500 hover:bg-white/5 transition-all">Discard</button>
+                     <button class="flex-1 py-3 bg-transparent border-2 border-[var(--border-color)] rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-500 hover:bg-white/5 transition-all">Discard</button>
                      <button id="commit-bg" class="flex-2 py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[9px] font-black uppercase tracking-widest shadow-xl transition-all px-8">Commit Guidelines</button>
                 </div>
             </div>
@@ -1666,7 +1725,7 @@ async function renderAssetsScreen() {
     grid.innerHTML = assets.map(v => {
       const fullUrl = `http://localhost:5243${v.url}`;
       return `
-            <div class="bg-[#151921] border border-[#2A2F3A] rounded-2xl aspect-square overflow-hidden group hover:border-purple-500/50 transition-all duration-300 relative">
+            <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl aspect-square overflow-hidden group hover:border-purple-500/50 transition-all duration-300 relative">
                 ${v.type === 'video' ? `
                     <video src="${fullUrl}" class="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" muted onmouseover="this.play()" onmouseout="this.pause()"></video>
                 ` : `
@@ -1702,7 +1761,7 @@ function renderBudgetMatrixScreen() {
     <div class="max-w-3xl mx-auto space-y-8 animate-in fade-in duration-700">
         
         <!-- Budget Configuration Card -->
-        <div class="bg-[#151921] border border-[#2A2F3A] rounded-3xl p-8 shadow-2xl space-y-6">
+        <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-3xl p-8 shadow-2xl space-y-6">
             <h2 class="text-xl font-black uppercase tracking-tight text-white mb-6">Budget Configuration</h2>
             
             <div class="grid grid-cols-2 gap-8">
@@ -1710,14 +1769,16 @@ function renderBudgetMatrixScreen() {
                     <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-1">
                         <span class="text-indigo-500">†</span> Total Spend Target ($)
                     </label>
-                    <div class="bg-[#0B0E14] p-6 rounded-3xl border border-[#2A2F3A] shadow-inner">
+                    <div class="bg-[var(--bg-color)] p-6 rounded-2xl border border-[var(--border-color)] shadow-inner">
                         <input type="text" value="1000" class="bg-transparent w-full text-2xl font-black outline-none text-white">
                     </div>
                 </div>
                 <div class="space-y-4">
-                    <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Test Cost Per Creative ($)</label>
-                    <div class="bg-[#0B0E14] p-4 rounded-xl border border-[#2A2F3A] shadow-inner">
-                        <input type="text" value="50" class="bg-transparent w-full text-xl font-black outline-none text-white">
+                    <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-1">
+                        <span class="text-indigo-500">†</span> Test Cost Per Creative ($)
+                    </label>
+                    <div class="bg-[var(--bg-color)] p-6 rounded-2xl border border-[var(--border-color)] shadow-inner">
+                        <input type="text" value="50" class="bg-transparent w-full text-2xl font-black outline-none text-white">
                     </div>
                 </div>
             </div>
@@ -1728,7 +1789,7 @@ function renderBudgetMatrixScreen() {
                     <span id="reallocation-val" class="px-3 py-1 bg-indigo-600 rounded-lg text-[10px] font-black text-white">${bm.reallocation}%</span>
                 </div>
                 <div class="relative pt-1">
-                    <input type="range" id="reallocation-slider" value="${bm.reallocation}" class="w-full h-1 bg-[#0B0E14] rounded-lg appearance-none cursor-pointer accent-indigo-500">
+                    <input type="range" id="reallocation-slider" value="${bm.reallocation}" class="w-full h-1 bg-[var(--bg-color)] rounded-lg appearance-none cursor-pointer accent-indigo-500">
                     <div class="flex justify-between mt-3">
                         <span class="text-[8px] font-black text-gray-600 uppercase">Conservative</span>
                         <span class="text-[8px] font-black text-gray-600 uppercase">Aggressive</span>
@@ -1742,10 +1803,10 @@ function renderBudgetMatrixScreen() {
         </div>
 
         <!-- Expectation Matrix Card -->
-        <div class="bg-[#151921] border border-[#2A2F3A] rounded-3xl p-8 shadow-2xl space-y-8">
+        <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-3xl p-8 shadow-2xl space-y-8">
             <div class="flex justify-between items-center">
                 <h2 class="text-xl font-black uppercase tracking-tight text-white">Expectation Matrix</h2>
-                <div class="bg-[#0B0E14] border border-[#2A2F3A] px-4 py-2 rounded-xl text-right">
+                <div class="bg-[var(--bg-color)] border border-[var(--border-color)] px-4 py-2 rounded-xl text-right">
                     <p class="text-[8px] font-black text-gray-500 uppercase">Weight</p>
                     <p id="total-weight" class="text-lg font-black text-white">${bm.reach + bm.click + bm.sales}%</p>
                 </div>
@@ -1756,36 +1817,36 @@ function renderBudgetMatrixScreen() {
                 <div class="space-y-4">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-xl bg-[#0B0E14] border border-[#2A2F3A] flex items-center justify-center text-gray-400 text-xs">👁</div>
+                            <div class="w-8 h-8 rounded-xl bg-[var(--bg-color)] border border-[var(--border-color)] flex items-center justify-center text-gray-400 text-xs">👁</div>
                             <span class="text-[10px] font-black text-gray-300 uppercase tracking-widest">Reach</span>
                         </div>
                         <span id="reach-val" class="text-base font-black text-white">${bm.reach}%</span>
                     </div>
-                    <input type="range" id="reach-slider" value="${bm.reach}" class="w-full h-1 bg-[#0B0E14] rounded-lg appearance-none cursor-pointer accent-cyan-500">
+                    <input type="range" id="reach-slider" value="${bm.reach}" class="w-full h-1 bg-[var(--bg-color)] rounded-lg appearance-none cursor-pointer accent-cyan-500">
                 </div>
 
                 <!-- Click Item -->
                 <div class="space-y-4">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-xl bg-[#0B0E14] border border-[#2A2F3A] flex items-center justify-center text-gray-400 text-xs">🖱</div>
+                            <div class="w-8 h-8 rounded-xl bg-[var(--bg-color)] border border-[var(--border-color)] flex items-center justify-center text-gray-400 text-xs">🖱</div>
                             <span class="text-[10px] font-black text-gray-300 uppercase tracking-widest">Click</span>
                         </div>
                         <span id="click-val" class="text-base font-black text-white">${bm.click}%</span>
                     </div>
-                    <input type="range" id="click-slider" value="${bm.click}" class="w-full h-1 bg-[#0B0E14] rounded-lg appearance-none cursor-pointer accent-purple-500">
+                    <input type="range" id="click-slider" value="${bm.click}" class="w-full h-1 bg-[var(--bg-color)] rounded-lg appearance-none cursor-pointer accent-purple-500">
                 </div>
 
                 <!-- Sales Item -->
                 <div class="space-y-4">
                     <div class="flex justify-between items-center">
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-xl bg-[#0B0E14] border border-[#2A2F3A] flex items-center justify-center text-gray-400 text-xs">🛍</div>
+                            <div class="w-8 h-8 rounded-xl bg-[var(--bg-color)] border border-[var(--border-color)] flex items-center justify-center text-gray-400 text-xs">🛍</div>
                             <span class="text-[10px] font-black text-gray-300 uppercase tracking-widest">Sales</span>
                         </div>
                         <span id="sales-val" class="text-base font-black text-white">${bm.sales}%</span>
                     </div>
-                    <input type="range" id="sales-slider" value="${bm.sales}" class="w-full h-1 bg-[#0B0E14] rounded-lg appearance-none cursor-pointer accent-green-500">
+                    <input type="range" id="sales-slider" value="${bm.sales}" class="w-full h-1 bg-[var(--bg-color)] rounded-lg appearance-none cursor-pointer accent-green-500">
                 </div>
             </div>
 
@@ -1836,14 +1897,14 @@ function renderApprovalsScreen() {
         
         <div id="approvals-list" class="space-y-4">
             ${queue.length === 0 ? `
-              <div class="bg-[#151921] border border-dashed border-[#2A2F3A] p-20 rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
+              <div class="bg-[var(--card-bg)] border border-dashed border-[var(--border-color)] p-20 rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
                   <span class="text-5xl opacity-20">📥</span>
                   <p class="text-gray-500 font-bold">No assets pending approval.<br><span class="text-xs font-medium opacity-50 uppercase tracking-tighter">New variations will appear here once approved by the Marketing Expert.</span></p>
               </div>
             ` : queue.map((asset, i) => {
     const isSelected = selectedIds.includes(asset.id)
     return `
-                    <div class="bg-[#151921] p-5 rounded-2xl border ${isSelected ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.1)]' : 'border-[#2A2F3A]'} flex items-center gap-6 group hover:border-amber-500/30 transition-all">
+                    <div class="bg-[var(--card-bg)] p-5 rounded-2xl border ${isSelected ? 'border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.1)]' : 'border-[var(--border-color)]'} flex items-center gap-6 group hover:border-amber-500/30 transition-all">
                         <div class="w-24 h-24 bg-black rounded-xl overflow-hidden shadow-2xl flex-shrink-0 relative">
                             ${asset.type === 'video' ? `
                               <video src="${asset.url}" class="w-full h-full object-cover"></video>
@@ -1952,14 +2013,14 @@ function renderApprovedAssetsScreen() {
         
         <div id="approvals-list" class="space-y-4">
             ${queue.length === 0 ? `
-              <div class="bg-[#151921] border border-dashed border-[#2A2F3A] p-20 rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
+              <div class="bg-[var(--card-bg)] border border-dashed border-[var(--border-color)] p-20 rounded-3xl flex flex-col items-center justify-center text-center space-y-4">
                   <span class="text-5xl opacity-20">✅</span>
                   <p class="text-gray-500 font-bold">No approved assets available.<br><span class="text-xs font-medium opacity-50 uppercase tracking-tighter">Variations will appear here once authorized by the CMO.</span></p>
               </div>
             ` : queue.map((asset, i) => {
     const isSelected = selectedIds.includes(asset.id)
     return `
-                    <div class="bg-[#151921] p-5 rounded-2xl border ${isSelected ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.1)]' : 'border-[#2A2F3A]'} flex items-center gap-6 group hover:border-emerald-500/30 transition-all">
+                    <div class="bg-[var(--card-bg)] p-5 rounded-2xl border ${isSelected ? 'border-emerald-500 shadow-[0_0_20px_rgba(16,185,129,0.1)]' : 'border-[var(--border-color)]'} flex items-center gap-6 group hover:border-emerald-500/30 transition-all">
                         <div class="w-24 h-24 bg-black rounded-xl overflow-hidden shadow-2xl flex-shrink-0 relative">
                             ${asset.type === 'video' ? `
                               <video src="${asset.url}" class="w-full h-full object-cover"></video>
@@ -2031,7 +2092,7 @@ function renderDeploySelectionScreen() {
               <h2 class="text-2xl font-black uppercase italic tracking-tighter">No Assets Selected</h2>
               <p class="text-gray-500 text-sm max-w-xs mx-auto">Please go to <span class="text-amber-500 font-bold">Ad Approvals</span> and select variations to configure their deployment platforms.</p>
           </div>
-          <button id="go-to-approvals" class="px-8 py-3 bg-[#151921] border border-[#2A2F3A] hover:border-amber-500/50 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+          <button id="go-to-approvals" class="px-8 py-3 bg-[var(--card-bg)] border border-[var(--border-color)] hover:border-amber-500/50 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
               Go to Ad Approvals
           </button>
       </div>
@@ -2065,11 +2126,11 @@ function renderDeploySelectionScreen() {
             `).join('')}
         </div>
 
-        <div class="bg-[#151921] border border-[#2A2F3A] p-8 rounded-3xl shadow-2xl">
+        <div class="bg-[var(--card-bg)] border border-[var(--border-color)] p-8 rounded-3xl shadow-2xl">
             <h3 class="text-sm font-black text-gray-400 uppercase tracking-widest mb-6">Execution Channels</h3>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                 ${['Facebook', 'YouTube', 'TikTok', 'Instagram'].map(platform => `
-                    <button class="platform-select-btn group relative p-6 bg-[#0B0E14] border border-[#2A2F3A] rounded-2xl hover:border-amber-500/50 hover:bg-amber-500/5 transition-all text-left space-y-4 overflow-hidden cursor-pointer" data-platform="${platform}">
+                    <button class="platform-select-btn group relative p-6 bg-[var(--bg-color)] border border-[var(--border-color)] rounded-2xl hover:border-amber-500/50 hover:bg-amber-500/5 transition-all text-left space-y-4 overflow-hidden cursor-pointer" data-platform="${platform}">
                         <div class="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-30 transition-opacity">
                             <span class="text-4xl text-white">🔗</span>
                         </div>
@@ -2080,13 +2141,13 @@ function renderDeploySelectionScreen() {
                             <p class="text-sm font-black uppercase tracking-tight">${platform}</p>
                             <p class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Active Link</p>
                         </div>
-                        <div class="select-indicator absolute top-3 right-3 w-4 h-4 rounded-full border-2 border-[#2A2F3A] group-hover:border-amber-500/50 transition-all shadow-inner"></div>
+                        <div class="select-indicator absolute top-3 right-3 w-4 h-4 rounded-full border-2 border-[var(--border-color)] group-hover:border-amber-500/50 transition-all shadow-inner"></div>
                     </button>
                 `).join('')}
             </div>
         </div>
 
-        <div class="flex justify-between items-center bg-[#151921] border border-[#2A2F3A] p-6 rounded-3xl">
+        <div class="flex justify-between items-center bg-[var(--card-bg)] border border-[var(--border-color)] p-6 rounded-3xl">
             <div class="space-y-1">
                 <p class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Total Estimated Reach</p>
                 <p class="text-xl font-black text-white">~ ${assets.length * 1.5}M <span class="text-gray-600 text-xs">People</span></p>
@@ -2106,7 +2167,7 @@ function renderDeploySelectionScreen() {
 
   contentContainer.insertAdjacentHTML('beforeend', `
     <div id="deploy-modal-overlay" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center hidden">
-        <div id="deploy-modal-content" class="bg-[#151921] w-full max-w-lg p-8 rounded-3xl border border-[#2A2F3A] shadow-[0_30px_60px_rgba(0,0,0,0.6)] space-y-6">
+        <div id="deploy-modal-content" class="bg-[var(--card-bg)] w-full max-w-lg p-8 rounded-3xl border border-[var(--border-color)] shadow-[0_30px_60px_rgba(0,0,0,0.6)] space-y-6">
             <!-- Content will be injected -->
         </div>
     </div>
@@ -2134,7 +2195,7 @@ function renderDeploySelectionScreen() {
                     <h4 class="text-[10px] font-bold text-cyan-400 uppercase tracking-widest border-b border-cyan-500/20 pb-1">Campaign Strategy</h4>
                     <div class="space-y-1">
                         <label class="text-[8px] font-black text-gray-500 uppercase">Target Campaign ID</label>
-                        <select id="tt-deploy-camp-id" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-cyan-500 text-xs font-bold text-white">
+                        <select id="tt-deploy-camp-id" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-cyan-500 text-xs font-bold text-white">
                             <option value="">-- CREATE NEW CAMPAIGN --</option>
                             <option value="CAMP_782394" ${config.campaign_id === 'CAMP_782394' ? 'selected' : ''}>Spring Launch 2026</option>
                             <option value="CAMP_991023" ${config.campaign_id === 'CAMP_991023' ? 'selected' : ''}>Lead Gen Global</option>
@@ -2143,14 +2204,14 @@ function renderDeploySelectionScreen() {
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Budget Mode</label>
-                            <select id="tt-deploy-budget-mode" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-cyan-500 text-xs font-bold text-white">
+                            <select id="tt-deploy-budget-mode" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-cyan-500 text-xs font-bold text-white">
                                 <option value="BUDGET_MODE_DAILY" ${config.budget_mode === 'BUDGET_MODE_DAILY' ? 'selected' : ''}>Daily</option>
                                 <option value="BUDGET_MODE_TOTAL" ${config.budget_mode === 'BUDGET_MODE_TOTAL' ? 'selected' : ''}>Lifetime</option>
                             </select>
                         </div>
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Daily/Total Budget ($)</label>
-                            <input type="number" id="tt-deploy-budget" value="${config.daily_budget}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-cyan-500 text-sm font-black text-white">
+                            <input type="number" id="tt-deploy-budget" value="${config.daily_budget}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-cyan-500 text-sm font-black text-white">
                         </div>
                     </div>
                 </div>
@@ -2161,7 +2222,7 @@ function renderDeploySelectionScreen() {
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Placement</label>
-                            <select id="tt-deploy-placement" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
+                            <select id="tt-deploy-placement" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
                                 <option value="PLACEMENT_TIKTOK" ${config.placement === 'PLACEMENT_TIKTOK' ? 'selected' : ''}>TikTok Only</option>
                                 <option value="PLACEMENT_PANGLE" ${config.placement === 'PLACEMENT_PANGLE' ? 'selected' : ''}>Pangle Network</option>
                                 <option value="PLACEMENT_ALL" ${config.placement === 'PLACEMENT_ALL' ? 'selected' : ''}>Automatic</option>
@@ -2169,7 +2230,7 @@ function renderDeploySelectionScreen() {
                         </div>
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Pacing Mode</label>
-                            <select id="tt-deploy-pacing" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
+                            <select id="tt-deploy-pacing" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
                                 <option value="PACING_MODE_SMOOTH" ${config.pacing === 'PACING_MODE_SMOOTH' ? 'selected' : ''}>Standard (Smooth)</option>
                                 <option value="PACING_MODE_FAST" ${config.pacing === 'PACING_MODE_FAST' ? 'selected' : ''}>Accelerated</option>
                             </select>
@@ -2178,24 +2239,24 @@ function renderDeploySelectionScreen() {
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Bid Type</label>
-                            <select id="tt-deploy-bid-type" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
+                            <select id="tt-deploy-bid-type" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
                                 <option value="BID_TYPE_COST_CAP" ${config.bid_type === 'BID_TYPE_COST_CAP' ? 'selected' : ''}>Cost Cap</option>
                                 <option value="BID_TYPE_LOWEST_COST" ${config.bid_type === 'BID_TYPE_LOWEST_COST' ? 'selected' : ''}>Lowest Cost</option>
                             </select>
                         </div>
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Target Bid ($)</label>
-                            <input type="number" id="tt-deploy-bid" value="${config.bid}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-black text-white">
+                            <input type="number" id="tt-deploy-bid" value="${config.bid}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-sm font-black text-white">
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Start Date</label>
-                            <input type="date" id="tt-deploy-start" value="${config.schedule_start}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
+                            <input type="date" id="tt-deploy-start" value="${config.schedule_start}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
                         </div>
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">End Date</label>
-                            <input type="date" id="tt-deploy-end" value="${config.schedule_end}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
+                            <input type="date" id="tt-deploy-end" value="${config.schedule_end}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-[11px] font-bold text-white">
                         </div>
                     </div>
                 </div>
@@ -2205,12 +2266,12 @@ function renderDeploySelectionScreen() {
                     <h4 class="text-[10px] font-bold text-amber-400 uppercase tracking-widest border-b border-amber-500/20 pb-1">Creative Defaults</h4>
                     <div class="space-y-1">
                         <label class="text-[8px] font-black text-gray-500 uppercase">Custom Ad Name (Optional)</label>
-                        <input type="text" id="tt-deploy-ad-name" value="${config.custom_ad_name}" placeholder="AI_Campaign_Batch_1" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-xs font-bold text-white">
+                        <input type="text" id="tt-deploy-ad-name" value="${config.custom_ad_name}" placeholder="AI_Campaign_Batch_1" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-amber-500 text-xs font-bold text-white">
                     </div>
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Call To Action</label>
-                            <select id="tt-deploy-cta" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-[11px] font-bold text-white">
+                            <select id="tt-deploy-cta" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-amber-500 text-[11px] font-bold text-white">
                                 <option value="LEARN_MORE" ${config.cta === 'LEARN_MORE' ? 'selected' : ''}>Learn More</option>
                                 <option value="SHOP_NOW" ${config.cta === 'SHOP_NOW' ? 'selected' : ''}>Shop Now</option>
                                 <option value="SIGN_UP" ${config.cta === 'SIGN_UP' ? 'selected' : ''}>Sign Up</option>
@@ -2219,7 +2280,7 @@ function renderDeploySelectionScreen() {
                         </div>
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Ad Status</label>
-                            <select id="tt-deploy-status" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-[11px] font-bold text-white">
+                            <select id="tt-deploy-status" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-amber-500 text-[11px] font-bold text-white">
                                 <option value="ENABLE" ${config.status === 'ENABLE' ? 'selected' : ''}>Active (Enable)</option>
                                 <option value="DISABLE" ${config.status === 'DISABLE' ? 'selected' : ''}>Paused (Disable)</option>
                             </select>
@@ -2227,12 +2288,12 @@ function renderDeploySelectionScreen() {
                     </div>
                     <div class="space-y-1">
                         <label class="text-[8px] font-black text-gray-500 uppercase">Target Interests (Tags/Keywords)</label>
-                        <input type="text" id="tt-deploy-interests" value="${config.interests}" placeholder="Fashion, Technology, Gaming..." class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-xs font-bold text-white">
+                        <input type="text" id="tt-deploy-interests" value="${config.interests}" placeholder="Fashion, Technology, Gaming..." class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-amber-500 text-xs font-bold text-white">
                     </div>
                     <div class="space-y-1">
                         <label class="text-[8px] font-black text-gray-500 uppercase">Landing URL</label>
                         <div class="flex gap-2">
-                            <input type="text" id="tt-deploy-url" value="${config.landing_url}" placeholder="https://..." class="flex-1 bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-amber-500 text-xs font-bold text-white">
+                            <input type="text" id="tt-deploy-url" value="${config.landing_url}" placeholder="https://..." class="flex-1 bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-amber-500 text-xs font-bold text-white">
                             <button class="px-4 bg-white text-black rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-amber-500 hover:text-white transition-all">ADD</button>
                         </div>
                     </div>
@@ -2244,7 +2305,7 @@ function renderDeploySelectionScreen() {
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Country</label>
-                            <select id="tt-deploy-country" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-emerald-500 text-[11px] font-bold text-white">
+                            <select id="tt-deploy-country" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-emerald-500 text-[11px] font-bold text-white">
                                 <option value="US" ${config.country === 'US' ? 'selected' : ''}>United States</option>
                                 <option value="GB" ${config.country === 'GB' ? 'selected' : ''}>United Kingdom</option>
                                 <option value="BD" ${config.country === 'BD' ? 'selected' : ''}>Bangladesh</option>
@@ -2252,7 +2313,7 @@ function renderDeploySelectionScreen() {
                         </div>
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Language</label>
-                            <select id="tt-deploy-language" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-emerald-500 text-[11px] font-bold text-white">
+                            <select id="tt-deploy-language" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-emerald-500 text-[11px] font-bold text-white">
                                 <option value="en" ${config.language === 'en' ? 'selected' : ''}>English</option>
                                 <option value="es" ${config.language === 'es' ? 'selected' : ''}>Spanish</option>
                                 <option value="fr" ${config.language === 'fr' ? 'selected' : ''}>French</option>
@@ -2262,7 +2323,7 @@ function renderDeploySelectionScreen() {
                     
                     <div class="space-y-1">
                         <label class="text-[8px] font-black text-gray-500 uppercase">Specific Area (Optional)</label>
-                        <div class="w-full bg-[#0B0E14] border border-dashed border-[#2A2F3A] p-4 rounded-xl flex flex-col items-center justify-center space-y-2 group hover:border-emerald-500/50 transition-all cursor-pointer">
+                        <div class="w-full bg-[var(--bg-color)] border border-dashed border-[var(--border-color)] p-4 rounded-xl flex flex-col items-center justify-center space-y-2 group hover:border-emerald-500/50 transition-all cursor-pointer">
                             <span class="text-xl">🗺️</span>
                             <span id="map-select-label" class="text-[9px] font-black text-gray-500 uppercase tracking-widest group-hover:text-emerald-400">Select from Maps</span>
                             <input type="hidden" id="tt-deploy-area" value="${config.area}">
@@ -2273,14 +2334,14 @@ function renderDeploySelectionScreen() {
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Age Range</label>
                             <div class="flex items-center gap-2">
-                                <input type="number" id="tt-deploy-age-min" value="${config.ageMin}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-emerald-500 text-sm font-black text-white text-center">
+                                <input type="number" id="tt-deploy-age-min" value="${config.ageMin}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-emerald-500 text-sm font-black text-white text-center">
                                 <span class="text-gray-600 text-[10px] font-bold">to</span>
-                                <input type="number" id="tt-deploy-age-max" value="${config.ageMax}" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-emerald-500 text-sm font-black text-white text-center">
+                                <input type="number" id="tt-deploy-age-max" value="${config.ageMax}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-emerald-500 text-sm font-black text-white text-center">
                             </div>
                         </div>
                         <div class="space-y-1">
                             <label class="text-[8px] font-black text-gray-500 uppercase">Gender</label>
-                            <select id="tt-deploy-gender" class="w-full bg-[#0B0E14] border border-[#2A2F3A] p-3 rounded-xl outline-none focus:border-emerald-500 text-[11px] font-bold text-white">
+                            <select id="tt-deploy-gender" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-emerald-500 text-[11px] font-bold text-white">
                                 <option value="GENDER_ANY" ${config.gender === 'GENDER_ANY' ? 'selected' : ''}>All</option>
                                 <option value="GENDER_MALE" ${config.gender === 'GENDER_MALE' ? 'selected' : ''}>Male</option>
                                 <option value="GENDER_FEMALE" ${config.gender === 'GENDER_FEMALE' ? 'selected' : ''}>Female</option>
@@ -2290,7 +2351,7 @@ function renderDeploySelectionScreen() {
                 </div>
             </div>
 
-            <div class="grid grid-cols-2 gap-4 pt-4 border-t border-[#2A2F3A]">
+            <div class="grid grid-cols-2 gap-4 pt-4 border-t border-[var(--border-color)]">
                 <button id="tt-deploy-cancel" class="py-4 bg-[#1A1F29] hover:bg-[#2A2F3A] text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all">Cancel</button>
                 <button id="tt-deploy-save" class="py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-xl shadow-purple-950/20">Commit & Attach 💾</button>
             </div>
@@ -2455,16 +2516,96 @@ ${JSON.stringify(previewPayload, null, 2)}
 
 function renderNotificationsScreen() {
   contentContainer.innerHTML = `
-    <div class="max-w-3xl mx-auto space-y-4">
-        <h2 class="text-2xl font-black uppercase italic">Alert Center</h2>
-        <div class="p-4 bg-[#151921] rounded-xl border-l-4 border-rose-500 text-sm">
-            <p class="font-bold">Budget limit exceeded for Active Campaign</p>
+    <div class="max-w-3xl mx-auto space-y-4 text-center">
+        <h2 class="text-2xl font-black uppercase italic tracking-tighter">Alert Center</h2>
+        <div class="p-4 bg-[var(--card-bg)] rounded-xl border-l-4 border-rose-500 text-sm border border-white/5">
+            <p class="font-bold opacity-80">Budget limit exceeded for Active Campaign</p>
         </div>
-        <div class="p-4 bg-[#151921] rounded-xl border-l-4 border-cyan-500 text-sm">
-            <p class="font-bold">New Creative assets generated by AI</p>
+        <div class="p-4 bg-[var(--card-bg)] rounded-xl border-l-4 border-cyan-500 text-sm border border-white/5">
+            <p class="font-bold opacity-80">New Creative assets generated by AI</p>
         </div>
     </div>
   `
+}
+
+function renderLoginScreen() {
+  contentContainer.innerHTML = `
+    <div class="fixed inset-0 bg-[var(--bg-color)] z-[10000] flex items-center justify-center p-6">
+        <div class="max-w-md w-full space-y-8 animate-in fade-in zoom-in-95 duration-500">
+            <div class="text-center space-y-4">
+                <div class="w-20 h-20 bg-gradient-to-tr from-cyan-600 to-indigo-600 rounded-[2rem] flex items-center justify-center mx-auto shadow-2xl shadow-cyan-900/20 rotate-12">
+                    <span class="text-3xl">🛡️</span>
+                </div>
+                <div class="space-y-1">
+                    <h1 class="text-4xl font-black tracking-tighter uppercase">Marketing AI</h1>
+                    <p class="text-gray-500 font-bold tracking-widest text-[10px] uppercase">Enterprise Orchestration Suite v1.0</p>
+                </div>
+            </div>
+
+            <div class="bg-[var(--card-bg)] border border-white/5 p-8 rounded-[2.5rem] shadow-2xl space-y-6">
+                <div class="space-y-4">
+                    <div class="space-y-1.5">
+                        <label class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Username</label>
+                        <input type="text" id="login-username" class="w-full bg-[var(--bg-color)] border border-white/10 p-4 rounded-2xl outline-none focus:border-cyan-500 text-[var(--text-color)] font-medium transition-all" placeholder="Enter username">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-[9px] font-black text-gray-400 uppercase tracking-[0.2em] ml-1">Password</label>
+                        <input type="password" id="login-password" class="w-full bg-[var(--bg-color)] border border-white/10 p-4 rounded-2xl outline-none focus:border-cyan-500 text-[var(--text-color)] font-medium transition-all" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <button id="btn-execute-login" class="w-full py-4 bg-white text-black font-black uppercase tracking-widest text-[11px] rounded-2xl hover:bg-cyan-400 transition-all shadow-xl active:scale-95 flex items-center justify-center gap-2">
+                    AUTHENTICATE ACCESS ⚡
+                </button>
+                
+                <p class="text-center text-[9px] text-gray-600 font-bold uppercase tracking-widest">
+                    Authorized Personnel Only — Neural Handshake Required
+                </p>
+            </div>
+        </div>
+    </div>
+  `
+
+  document.getElementById('btn-execute-login').onclick = async () => {
+    const username = document.getElementById('login-username').value
+    const password = document.getElementById('login-password').value
+
+    if (!username || !password) return showNotification("Please enter credentials", "error")
+
+    const btn = document.getElementById('btn-execute-login')
+    btn.disabled = true
+    btn.innerHTML = 'VALIDATING NEURAL KEY... 🧬'
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      })
+
+      if (res.ok) {
+        const data = await res.json()
+        state.isAuthenticated = true
+        state.token = data.token
+        state.user = data.user
+        state.activeRole = data.user.role // Auto-switch to their role
+
+        localStorage.setItem('mt_token', data.token)
+        localStorage.setItem('mt_user', JSON.stringify(data.user))
+
+        showNotification(`Welcome back, ${data.user.username}`, 'success')
+        setTimeout(() => updateUI(), 1000)
+      } else {
+        showNotification("Authentication Failed: Invalid Credentials", "error")
+        btn.disabled = false
+        btn.innerHTML = 'RE-AUTHENTICATE ACCESS ⚡'
+      }
+    } catch (e) {
+      showNotification("Quantum Link Error — Backend Offline", "error")
+      btn.disabled = false
+      btn.innerHTML = 'RE-AUTHENTICATE ACCESS ⚡'
+    }
+  }
 }
 
 // --- Initialization ---
@@ -2485,6 +2626,22 @@ window.onclick = () => {
 // Persist data from server
 async function initApp() {
   console.log('Initializing Platform...')
+
+  const savedToken = localStorage.getItem('mt_token')
+  const savedUser = localStorage.getItem('mt_user')
+
+  let initialRole = 'Expert'
+  if (savedToken && savedUser) {
+    state.token = savedToken
+    state.user = JSON.parse(savedUser)
+    state.isAuthenticated = true
+    initialRole = state.user.role // Use the role from the saved user
+  }
+
+  // Check Theme
+  const savedTheme = localStorage.getItem('mt_theme') || 'dark'
+  setTheme(savedTheme)
+
   try {
     const res = await fetch(`${API_BASE}/guidelines`)
     if (res.ok) {
@@ -2518,7 +2675,7 @@ async function initApp() {
     console.warn('⚠ Backend storage service offline. Using local session memory only.')
   }
 
-  switchRole('Expert')
+  switchRole(initialRole)
 }
 
 initApp()
