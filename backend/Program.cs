@@ -172,30 +172,36 @@ app.MapPost("/api/auth/login", async (AppDbContext db, IConfiguration config, Lo
 });
 
 
+
 // --- RBAC Endpoints ---
 app.MapGet("/api/rbac/roles", async (AppDbContext db) => await db.Roles.ToListAsync());
 
 app.MapGet("/api/rbac/screens", async (AppDbContext db) => await db.Screens.ToListAsync());
 
-app.MapGet("/api/rbac/role-permissions/{roleId}", async (AppDbContext db, int roleId) =>
+app.MapGet("/api/rbac/users", async (AppDbContext db) => 
 {
-    var permissions = await db.RoleScreens
-        .Where(rs => rs.RoleId == roleId)
-        .Select(rs => rs.ScreenId)
+    var users = await db.Users
+        .Include(u => u.Role)
+        .OrderByDescending(u => u.CreatedAt)
+        .Select(u => new { 
+            u.Id, 
+            u.Username, 
+            u.Email, 
+            Role = u.Role != null ? new { u.Role.Id, u.Role.Name } : null,
+            u.CreatedAt 
+        })
         .ToListAsync();
-    return Results.Ok(permissions);
+    return Results.Ok(users);
 });
 
-app.MapPost("/api/rbac/role-permissions", async (AppDbContext db, RolePermissionUpdate req) =>
+app.MapDelete("/api/rbac/users/{id}", async (AppDbContext db, int id) =>
 {
-    var existing = await db.RoleScreens.Where(rs => rs.RoleId == req.RoleId).ToListAsync();
-    db.RoleScreens.RemoveRange(existing);
+    var user = await db.Users.FindAsync(id);
+    if (user == null) return Results.NotFound();
 
-    var newPermissions = req.ScreenIds.Select(sid => new RoleScreen { RoleId = req.RoleId, ScreenId = sid });
-    db.RoleScreens.AddRange(newPermissions);
-
+    db.Users.Remove(user);
     await db.SaveChangesAsync();
-    return Results.Ok();
+    return Results.Ok(new { message = "User access revoked" });
 });
 
 app.MapPost("/api/rbac/seed", async (AppDbContext db) =>

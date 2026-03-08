@@ -322,3 +322,14 @@
 
 
 
+- [x] **Step 57: Admin: User Entry Form & Database Integration**
+  - [x] Create a "User Management" screen for the Admin role in the frontend.
+  - [x] Implement a form to add new users with fields: Username, Email, Password, and Role selection.
+  - [x] Connect the form to the backend `/api/auth/register` endpoint.
+  - [x] Ensure newly created users are correctly saved to the PostgreSQL `Users` table and can be used for login.
+
+- [ ] **Step 58: Admin: Role Entry & Screen Assignment System**
+  - [ ] Implement a "Create New Role" form in the Role Management screen.
+  - [ ] Add a "Screen Assignment" interface where the admin can select/unselect screens for each role.
+  - [ ] Create/Update backend endpoints to handle new role creation and mapping roles to screens (`RoleScreens` table).
+  - [ ] Ensure that changes to role permissions are immediately reflected in the database and sidebar for relevant users.

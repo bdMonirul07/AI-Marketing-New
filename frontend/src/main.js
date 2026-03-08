@@ -1,4 +1,4 @@
-import './style.css'
+﻿import './style.css'
 import { deployToTikTok } from './tiktokDeploy.js'
 
 const API_BASE = 'http://localhost:5243/api'
@@ -108,6 +108,7 @@ const roles = {
     screens: [
       { id: 'Config', label: 'Platform Config', icon: '⚙️' },
       { id: 'CompanyProfile', label: 'Company Profile', icon: '🏢' },
+      { id: 'UserManagement', label: 'User Management', icon: '👥' },
       { id: 'RoleManagement', label: 'Role Management', icon: '👤' },
       { id: 'Calendar', label: 'Global Calendar', icon: '📅' },
       { id: 'Guideline', label: 'Brand Guideline', icon: '📜' },
@@ -395,6 +396,9 @@ function renderScreen(screenId) {
       break
     case 'RoleManagement':
       renderRoleManagementScreen()
+      break
+    case 'UserManagement':
+      renderUserManagementScreen()
       break
     case 'CompanyProfile':
       renderCompanyProfileScreen()
@@ -1191,6 +1195,197 @@ function renderMonitoringScreen() {
         </div>
     </div>
   `
+}
+
+// --- User Management (Admin) ---
+async function renderUserManagementScreen() {
+  contentContainer.innerHTML = `
+        <div class="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-700">
+            <div class="text-center space-y-2">
+                <h2 class="text-3xl font-black uppercase tracking-tighter">User Management</h2>
+                <p class="text-gray-500 text-sm font-medium">Create and manage access for authorized personnel.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <!-- User Entry Form -->
+                <div class="lg:col-span-1 bg-[var(--card-bg)] border border-[var(--border-color)] p-6 rounded-[25px] shadow-2xl space-y-6">
+                    <h3 class="text-lg font-black uppercase tracking-widest text-white border-b border-white/5 pb-3">New Identity</h3>
+                    
+                    <form id="user-creation-form" class="space-y-4">
+                        <div class="space-y-1.5">
+                            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Username</label>
+                            <input type="text" id="reg-username" required class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-cyan-500 text-white text-sm" placeholder="Username...">
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Email Address</label>
+                            <input type="email" id="reg-email" required class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-cyan-500 text-white text-sm" placeholder="email@example.com">
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Security Pin (Password)</label>
+                            <input type="password" id="reg-password" required class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-cyan-500 text-white text-sm" placeholder="••••••••">
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Access Role</label>
+                            <select id="reg-role" required class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-cyan-500 text-white text-sm appearance-none">
+                                <option value="" disabled selected>Select Role...</option>
+                                <!-- Roles will be loaded here -->
+                            </select>
+                        </div>
+
+                        <button type="submit" id="btn-create-user" class="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-black rounded-xl transition-all shadow-xl uppercase tracking-widest text-xs flex items-center justify-center gap-2">
+                           AUTHORIZE USER ⚡
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Existing Personnel List -->
+                <div class="lg:col-span-2 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[25px] overflow-hidden shadow-2xl flex flex-col">
+                    <div class="p-6 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                        <h3 class="text-sm font-black uppercase tracking-widest text-white">Personnel Directory</h3>
+                        <span id="user-count-badge" class="bg-cyan-500 text-black text-[9px] font-black px-2 py-0.5 rounded-full">LOADING...</span>
+                    </div>
+                    
+                    <div class="flex-1 overflow-y-auto max-h-[500px]">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-black/20 text-[9px] text-gray-500 uppercase font-black sticky top-0 backdrop-blur-md">
+                                <tr>
+                                    <th class="px-6 py-4">Identity</th>
+                                    <th class="px-6 py-4">Role</th>
+                                    <th class="px-6 py-4">Email</th>
+                                    <th class="px-6 py-4 text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="user-list-body" class="divide-y divide-white/5 text-xs text-gray-400">
+                                <!-- Users will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `
+
+  // --- Load Data ---
+  try {
+    // 1. Load Roles for dropdown
+    const rolesRes = await fetch(`${API_BASE}/rbac/roles`)
+    const roles = await rolesRes.json()
+    const roleSelect = document.getElementById('reg-role')
+    roleSelect.innerHTML += roles.map(r => `<option value="${r.id}">${r.name}</option>`).join('')
+
+    // 2. Load Users for table (Using a generic endpoint if available, or fetch from existing if needed)
+    // For now, let's just create a quick endpoint or fetch users somehow.
+    // If we don't have a list-users endpoint, we might need to add one in Program.cs
+    // Let's check for one in Program.cs later.
+    loadUserList()
+
+  } catch (e) {
+    console.warn("Could not load role/user data", e)
+  }
+
+  // --- Form Handling ---
+  document.getElementById('user-creation-form').onsubmit = async (e) => {
+    e.preventDefault()
+    const btn = document.getElementById('btn-create-user')
+    const originalText = btn.innerHTML
+    btn.innerHTML = 'VALIDATING... <span class="animate-spin">⌛</span>'
+    btn.disabled = true
+
+    const payload = {
+      username: document.getElementById('reg-username').value,
+      email: document.getElementById('reg-email').value,
+      password: document.getElementById('reg-password').value,
+      roleId: parseInt(document.getElementById('reg-role').value)
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+
+      const data = await res.json()
+
+      if (res.ok) {
+        showNotification("USER AUTHORIZED: Access granted to " + payload.username, "success")
+        document.getElementById('user-creation-form').reset()
+        loadUserList()
+      } else {
+        showNotification(data.message || "Authorization failed", "error")
+      }
+    } catch (error) {
+      showNotification("Network error. Could not contact security server.", "error")
+    } finally {
+      btn.innerHTML = originalText
+      btn.disabled = false
+    }
+  }
+}
+
+async function loadUserList() {
+  const listBody = document.getElementById('user-list-body')
+  const badge = document.getElementById('user-count-badge')
+
+  try {
+    // We might need a new endpoint in Program.cs: GET /api/rbac/users
+    const res = await fetch(`${API_BASE}/rbac/users`)
+    if (!res.ok) throw new Error("Endpoint not found")
+
+    const users = await res.json()
+    badge.innerText = users.length + " ACTIVE"
+
+    listBody.innerHTML = users.map(u => `
+            <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5">
+                <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-cyan-900/30 text-cyan-400 flex items-center justify-center font-bold border border-cyan-500/20 text-[10px] uppercase">
+                            ${u.username[0]}
+                        </div>
+                        <span class="font-bold text-gray-200 uppercase tracking-tighter">${u.username}</span>
+                    </div>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase ${u.role?.name === 'Admin' ? 'bg-purple-900/50 text-purple-400 border border-purple-500/30' : 'bg-gray-800 text-gray-400'}">${u.role?.name || 'User'}</span>
+                </td>
+                <td class="px-6 py-4 text-gray-500">${u.email || '-'}</td>
+                <td class="px-6 py-4 text-right">
+                    <button class="revoke-btn text-rose-500 hover:text-rose-400 transition-colors uppercase font-black text-[9px] tracking-widest px-3 py-1 bg-rose-500/10 rounded-md border border-rose-500/20" data-id="${u.id}" data-name="${u.username}">Revoke</button>
+                </td>
+            </tr>
+        `).join('')
+
+    // Add Revoke handler
+    document.querySelectorAll('.revoke-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const userId = btn.dataset.id
+        const userName = btn.dataset.name
+
+        if (userName === 'admin' || userName === state.user?.username) {
+          showNotification("Security Protocol: You cannot revoke access for the master admin or your own identity.", "error")
+          return
+        }
+
+        if (!confirm(`Are you sure you want to terminate access for ${userName}?`)) return
+
+        try {
+          const res = await fetch(`${API_BASE}/rbac/users/${userId}`, { method: 'DELETE' })
+          if (res.ok) {
+            showNotification("ACCESS REVOKED: " + userName + " is no longer authorized.", "success")
+            loadUserList()
+          }
+        } catch (e) {
+          showNotification("Protocol Error: Connection to security server lost.", "error")
+        }
+      }
+    })
+  } catch (e) {
+    listBody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-gray-600 italic">Personnel directory temporarily unavailable.</td></tr>'
+    badge.innerText = "OFFLINE"
+  }
 }
 
 function renderBudgetScreen() {
@@ -2588,7 +2783,7 @@ function renderLoginScreen() {
         state.isAuthenticated = true
         state.token = data.token
         state.user = data.user
-        state.activeRole = data.user.role // Auto-switch to their role
+        state.activeRole = data.user.role
 
         localStorage.setItem('mt_token', data.token)
         localStorage.setItem('mt_user', JSON.stringify(data.user))
@@ -2678,4 +2873,4 @@ async function initApp() {
   switchRole(initialRole)
 }
 
-initApp()
+initApp();
