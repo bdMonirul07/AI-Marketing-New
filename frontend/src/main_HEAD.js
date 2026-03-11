@@ -1,6 +1,5 @@
-import './style.css'
+﻿import './style.css'
 import { deployToTikTok } from './tiktokDeploy.js'
-import { deployToFacebook } from './facebookDeploy.js'
 
 const API_BASE = 'http://localhost:5243/api'
 
@@ -78,14 +77,6 @@ const state = {
         ageMax: 65,
         gender: 'GENDER_ANY',
         landing_url: ''
-      },
-      facebook: {
-        campaign_name: '',
-        objective: 'OUTCOME_TRAFFIC',
-        daily_budget: 100,
-        schedule_start: '',
-        schedule_end: '',
-        page_id: ''
       }
     },
     companyProfile: {
@@ -117,7 +108,6 @@ const roles = {
     screens: [
       { id: 'Config', label: 'Platform Config', icon: '⚙️' },
       { id: 'CompanyProfile', label: 'Company Profile', icon: '🏢' },
-      { id: 'UserManagement', label: 'User Management', icon: '👥' },
       { id: 'RoleManagement', label: 'Role Management', icon: '👤' },
       { id: 'Calendar', label: 'Global Calendar', icon: '📅' },
       { id: 'Guideline', label: 'Brand Guideline', icon: '📜' },
@@ -132,7 +122,6 @@ const roles = {
       { id: 'BudgetMatrix', label: 'Budget & Matrix', icon: '📈' },
       { id: 'Approvals', label: 'Ad Approvals', icon: '✅' },
       { id: 'Monitoring', label: 'AI Monitoring', icon: '📊' },
-      { id: 'AdPerformance', label: 'Ad Performance', icon: '📈' },
       { id: 'Budget', label: 'Budget Overview', icon: '💰' },
       { id: 'Notifications', label: 'Notifications', icon: '🔔' },
     ]
@@ -144,7 +133,6 @@ const roles = {
     screens: [
       { id: 'ApprovedAssets', label: 'Approved Assets', icon: '✅' },
       { id: 'DeploySelection', label: 'Platform Selection', icon: '🎯' },
-      { id: 'AdPerformance', label: 'Ad Performance', icon: '📈' },
       { id: 'Monitoring', label: 'AI Monitoring', icon: '📊' },
       { id: 'Budget', label: 'Budget Overview', icon: '💰' },
     ]
@@ -162,30 +150,6 @@ const roles = {
     ]
   }
 }
-
-const screenRegistry = {
-  'Dashboard': { label: 'Dashboard', icon: '🏠' },
-  'Objective': { label: 'Campaign Objective', icon: '🎯' },
-  'Targeting': { label: 'Target Audience', icon: '👥' },
-  'Research': { label: 'Strategy Hub', icon: '🧠' },
-  'CreativeConfig': { label: 'Creative Config', icon: '🎬' },
-  'Studio': { label: 'Creative Studio', icon: '🎨' },
-  'BudgetMatrix': { label: 'Budget & Matrix', icon: '📈' },
-  'Approvals': { label: 'Ad Approvals', icon: '✅' },
-  'Monitoring': { label: 'AI Monitoring', icon: '📊' },
-  'Budget': { label: 'Budget Overview', icon: '💰' },
-  'Notifications': { label: 'Notifications', icon: '🔔' },
-  'ApprovedAssets': { label: 'Approved Assets', icon: '✅' },
-  'DeploySelection': { label: 'Platform Selection', icon: '🎯' },
-  'AdPerformance': { label: 'Ad Performance', icon: '📊' },
-  'UserManagement': { label: 'User Management', icon: '👥' },
-  'RoleManagement': { label: 'Role Management', icon: '👤' },
-  'CompanyProfile': { label: 'Company Profile', icon: '🏢' },
-  'Config': { label: 'Platform Config', icon: '⚙️' },
-  'Calendar': { label: 'Global Calendar', icon: '📅' },
-  'Guideline': { label: 'Brand Guideline', icon: '📜' },
-  'Assets': { label: 'Creative Assets', icon: '🖼️' }
-};
 
 // --- DOM Elements ---
 const navLinks = document.getElementById('nav-links')
@@ -254,29 +218,24 @@ if (logoutBtn) logoutBtn.onclick = handleLogout
 
 function switchScreen(screenId) {
   state.activeScreen = screenId
-  
-  // Clean up any stray notifications when switching contexts
-  const existingOverlays = document.querySelectorAll('[id^="notification-overlay"]')
-  existingOverlays.forEach(o => o.remove())
-
   updateUI()
 }
 
 function showNotification(message, type = 'success') {
   const overlay = document.createElement('div')
   overlay.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center animate-in fade-in duration-300'
-  overlay.id = 'notification-overlay-' + Date.now()
+  overlay.id = 'notification-overlay'
 
   overlay.innerHTML = `
     <div class="bg-[var(--bg-secondary)] border border-white/10 p-8 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] max-w-sm w-full mx-6 text-center space-y-6 animate-in zoom-in-95 duration-300">
         <div class="w-16 h-16 ${type === 'success' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 'bg-rose-500/10 text-rose-500 border-rose-500/20'} rounded-full flex items-center justify-center mx-auto border-2 text-2xl">
-            ${type === 'success' ? '✓' : type === 'attention' ? '⚠️' : '⚠'}
+            ${type === 'success' ? '✓' : '⚠'}
         </div>
         <div class="space-y-2">
             <h3 class="text-white font-black uppercase tracking-tighter text-xl">${type === 'success' ? 'Success' : 'Attention'}</h3>
             <p class="text-gray-400 text-sm font-medium leading-relaxed">${message}</p>
         </div>
-        <button class="close-notification-btn w-full py-3 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-gray-200 transition-all cursor-pointer">
+        <button id="close-notification" class="w-full py-3 bg-white text-black font-black uppercase text-[10px] tracking-widest rounded-xl hover:bg-gray-200 transition-all cursor-pointer">
             Dismiss
         </button>
     </div>
@@ -284,14 +243,10 @@ function showNotification(message, type = 'success') {
 
   document.body.appendChild(overlay)
 
-  // Fix: Use querySelector on the specific overlay to avoid ID conflicts
-  const closeBtn = overlay.querySelector('.close-notification-btn')
-  if (closeBtn) {
-    closeBtn.onclick = () => {
-      overlay.classList.add('opacity-0', 'scale-95')
-      overlay.style.transition = 'all 0.3s ease'
-      setTimeout(() => overlay.remove(), 300)
-    }
+  document.getElementById('close-notification').onclick = () => {
+    overlay.classList.add('opacity-0', 'scale-95')
+    overlay.style.transition = 'all 0.3s ease'
+    setTimeout(() => overlay.remove(), 300)
   }
 }
 
@@ -369,47 +324,26 @@ function updateUI() {
   document.querySelector('aside').classList.remove('hidden')
   document.querySelector('header').classList.remove('hidden')
 
-  const currentRoleName = state.user?.role || state.activeRole || 'User'
-  const fallbackRole = roles[currentRoleName] || roles['Expert']
-
-  const themeColor = fallbackRole.themeColor || 'purple'
-  const roleDisplayName = fallbackRole.displayName || `${currentRoleName} Role`
-  const roleIcon = fallbackRole.icon || currentRoleName[0].toUpperCase()
-
-  // Use dynamic permissions if available, otherwise fallback
-  let allowedScreenIds = state.user?.screens || state.user?.Screens
-  if (!allowedScreenIds && fallbackRole) {
-    allowedScreenIds = fallbackRole.screens.map(s => s.id)
-  }
-  if (!allowedScreenIds || allowedScreenIds.length === 0) {
-    allowedScreenIds = ['Dashboard'] // fallback minimal access
-  }
-
-  const currentScreens = allowedScreenIds.map(id => ({
-    id,
-    label: screenRegistry[id]?.label || id,
-    icon: screenRegistry[id]?.icon || '📄'
-  }))
-
-  const currentScreen = currentScreens.find(s => s.id === state.activeScreen) || currentScreens[0]
+  const currentRole = roles[state.activeRole]
+  const currentScreen = currentRole.screens.find(s => s.id === state.activeScreen) || currentRole.screens[0]
   state.activeScreen = currentScreen.id
 
   // Update Header & Sidebar
-  activeRoleDisplay.innerText = roleDisplayName
-  activeRoleIcon.innerText = roleIcon
-  activeRoleIcon.className = `w-8 h-8 rounded-full bg-${themeColor}-900/50 flex items-center justify-center text-${themeColor}-400 font-bold border border-${themeColor}-500/30`
-  userInitial.innerText = state.user?.username ? state.user.username[0].toUpperCase() : roleIcon
-  userName.innerText = state.user?.username || `${roleDisplayName.split(' ')[1]} User`
+  activeRoleDisplay.innerText = currentRole.displayName
+  activeRoleIcon.innerText = currentRole.icon
+  activeRoleIcon.className = `w-8 h-8 rounded-full bg-${currentRole.themeColor}-900/50 flex items-center justify-center text-${currentRole.themeColor}-400 font-bold border border-${currentRole.themeColor}-500/30`
+  userInitial.innerText = state.user?.username ? state.user.username[0].toUpperCase() : currentRole.icon
+  userName.innerText = state.user?.username || `${currentRole.displayName.split(' ')[1]} User`
 
-  pageTitleName.innerText = currentScreen.label
+  pageTitleName.innerText = currentScreen.id
 
   // Update Nav Links
-  navLinks.innerHTML = currentScreens.map(screen => {
+  navLinks.innerHTML = currentRole.screens.map(screen => {
     const isApprovals = screen.id === 'Approvals'
     const queueCount = state.marketingData.cmoQueue.length
 
     return `
-      <button class="nav-btn w-full flex items-center justify-between p-3 rounded-xl transition-all ${state.activeScreen === screen.id ? `bg-${themeColor}-500/20 text-${themeColor}-400 border border-${themeColor}-500/30 font-bold` : 'text-gray-400 hover:text-white hover:bg-gray-800/50'}" data-screen="${screen.id}">
+      <button class="nav-btn w-full flex items-center justify-between p-3 rounded-xl transition-all ${state.activeScreen === screen.id ? `bg-${currentRole.themeColor}-500/20 text-${currentRole.themeColor}-400 border border-${currentRole.themeColor}-500/30 font-bold` : 'text-gray-400 hover:text-white hover:bg-gray-800/50'}" data-screen="${screen.id}">
         <div class="flex items-center space-x-3">
           <span class="text-lg">${screen.icon}</span>
           <span class="text-sm">${screen.label}</span>
@@ -462,9 +396,6 @@ function renderScreen(screenId) {
     case 'RoleManagement':
       renderRoleManagementScreen()
       break
-    case 'UserManagement':
-      renderUserManagementScreen()
-      break
     case 'CompanyProfile':
       renderCompanyProfileScreen()
       break
@@ -489,9 +420,6 @@ function renderScreen(screenId) {
       break
     case 'DeploySelection':
       renderDeploySelectionScreen()
-      break
-    case 'AdPerformance':
-      renderAdPerformanceScreen()
       break
     case 'Login':
       renderLoginScreen()
@@ -1265,197 +1193,6 @@ function renderMonitoringScreen() {
   `
 }
 
-// --- User Management (Admin) ---
-async function renderUserManagementScreen() {
-  contentContainer.innerHTML = `
-        <div class="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-700">
-            <div class="text-center space-y-2">
-                <h2 class="text-3xl font-black uppercase tracking-tighter">User Management</h2>
-                <p class="text-gray-500 text-sm font-medium">Create and manage access for authorized personnel.</p>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- User Entry Form -->
-                <div class="lg:col-span-1 bg-[var(--card-bg)] border border-[var(--border-color)] p-6 rounded-[25px] shadow-2xl space-y-6">
-                    <h3 class="text-lg font-black uppercase tracking-widest text-white border-b border-white/5 pb-3">New Identity</h3>
-                    
-                    <form id="user-creation-form" class="space-y-4">
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Username</label>
-                            <input type="text" id="reg-username" required class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-cyan-500 text-white text-sm" placeholder="Username...">
-                        </div>
-
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Email Address</label>
-                            <input type="email" id="reg-email" required class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-cyan-500 text-white text-sm" placeholder="email@example.com">
-                        </div>
-
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Security Pin (Password)</label>
-                            <input type="password" id="reg-password" required class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-cyan-500 text-white text-sm" placeholder="••••••••">
-                        </div>
-
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Access Role</label>
-                            <select id="reg-role" required class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-cyan-500 text-white text-sm appearance-none">
-                                <option value="" disabled selected>Select Role...</option>
-                                <!-- Roles will be loaded here -->
-                            </select>
-                        </div>
-
-                        <button type="submit" id="btn-create-user" class="w-full py-4 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-black rounded-xl transition-all shadow-xl uppercase tracking-widest text-xs flex items-center justify-center gap-2">
-                           AUTHORIZE USER ⚡
-                        </button>
-                    </form>
-                </div>
-
-                <!-- Existing Personnel List -->
-                <div class="lg:col-span-2 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[25px] overflow-hidden shadow-2xl flex flex-col">
-                    <div class="p-6 border-b border-white/5 bg-white/5 flex justify-between items-center">
-                        <h3 class="text-sm font-black uppercase tracking-widest text-white">Personnel Directory</h3>
-                        <span id="user-count-badge" class="bg-cyan-500 text-black text-[9px] font-black px-2 py-0.5 rounded-full">LOADING...</span>
-                    </div>
-                    
-                    <div class="flex-1 overflow-y-auto max-h-[500px]">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="bg-black/20 text-[9px] text-gray-500 uppercase font-black sticky top-0 backdrop-blur-md">
-                                <tr>
-                                    <th class="px-6 py-4">Identity</th>
-                                    <th class="px-6 py-4">Role</th>
-                                    <th class="px-6 py-4">Email</th>
-                                    <th class="px-6 py-4 text-right">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody id="user-list-body" class="divide-y divide-white/5 text-xs text-gray-400">
-                                <!-- Users will be loaded here -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `
-
-  // --- Load Data ---
-  try {
-    // 1. Load Roles for dropdown
-    const rolesRes = await fetch(`${API_BASE}/rbac/roles`)
-    const roles = await rolesRes.json()
-    const roleSelect = document.getElementById('reg-role')
-    roleSelect.innerHTML += roles.map(r => `<option value="${r.id}">${r.name}</option>`).join('')
-
-    // 2. Load Users for table (Using a generic endpoint if available, or fetch from existing if needed)
-    // For now, let's just create a quick endpoint or fetch users somehow.
-    // If we don't have a list-users endpoint, we might need to add one in Program.cs
-    // Let's check for one in Program.cs later.
-    loadUserList()
-
-  } catch (e) {
-    console.warn("Could not load role/user data", e)
-  }
-
-  // --- Form Handling ---
-  document.getElementById('user-creation-form').onsubmit = async (e) => {
-    e.preventDefault()
-    const btn = document.getElementById('btn-create-user')
-    const originalText = btn.innerHTML
-    btn.innerHTML = 'VALIDATING... <span class="animate-spin">⌛</span>'
-    btn.disabled = true
-
-    const payload = {
-      username: document.getElementById('reg-username').value,
-      email: document.getElementById('reg-email').value,
-      password: document.getElementById('reg-password').value,
-      roleId: parseInt(document.getElementById('reg-role').value)
-    }
-
-    try {
-      const res = await fetch(`${API_BASE}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-
-      const data = await res.json()
-
-      if (res.ok) {
-        showNotification("USER AUTHORIZED: Access granted to " + payload.username, "success")
-        document.getElementById('user-creation-form').reset()
-        loadUserList()
-      } else {
-        showNotification(data.message || "Authorization failed", "error")
-      }
-    } catch (error) {
-      showNotification("Network error. Could not contact security server.", "error")
-    } finally {
-      btn.innerHTML = originalText
-      btn.disabled = false
-    }
-  }
-}
-
-async function loadUserList() {
-  const listBody = document.getElementById('user-list-body')
-  const badge = document.getElementById('user-count-badge')
-
-  try {
-    // We might need a new endpoint in Program.cs: GET /api/rbac/users
-    const res = await fetch(`${API_BASE}/rbac/users`)
-    if (!res.ok) throw new Error("Endpoint not found")
-
-    const users = await res.json()
-    badge.innerText = users.length + " ACTIVE"
-
-    listBody.innerHTML = users.map(u => `
-            <tr class="hover:bg-white/[0.02] transition-colors border-b border-white/5">
-                <td class="px-6 py-4">
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full bg-cyan-900/30 text-cyan-400 flex items-center justify-center font-bold border border-cyan-500/20 text-[10px] uppercase">
-                            ${u.username[0]}
-                        </div>
-                        <span class="font-bold text-gray-200 uppercase tracking-tighter">${u.username}</span>
-                    </div>
-                </td>
-                <td class="px-6 py-4">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-black uppercase ${u.role?.name === 'Admin' ? 'bg-purple-900/50 text-purple-400 border border-purple-500/30' : 'bg-gray-800 text-gray-400'}">${u.role?.name || 'User'}</span>
-                </td>
-                <td class="px-6 py-4 text-gray-500">${u.email || '-'}</td>
-                <td class="px-6 py-4 text-right">
-                    <button class="revoke-btn text-rose-500 hover:text-rose-400 transition-colors uppercase font-black text-[9px] tracking-widest px-3 py-1 bg-rose-500/10 rounded-md border border-rose-500/20" data-id="${u.id}" data-name="${u.username}">Revoke</button>
-                </td>
-            </tr>
-        `).join('')
-
-    // Add Revoke handler
-    document.querySelectorAll('.revoke-btn').forEach(btn => {
-      btn.onclick = async () => {
-        const userId = btn.dataset.id
-        const userName = btn.dataset.name
-
-        if (userName === 'admin' || userName === state.user?.username) {
-          showNotification("Security Protocol: You cannot revoke access for the master admin or your own identity.", "error")
-          return
-        }
-
-        if (!confirm(`Are you sure you want to terminate access for ${userName}?`)) return
-
-        try {
-          const res = await fetch(`${API_BASE}/rbac/users/${userId}`, { method: 'DELETE' })
-          if (res.ok) {
-            showNotification("ACCESS REVOKED: " + userName + " is no longer authorized.", "success")
-            loadUserList()
-          }
-        } catch (e) {
-          showNotification("Protocol Error: Connection to security server lost.", "error")
-        }
-      }
-    })
-  } catch (e) {
-    listBody.innerHTML = '<tr><td colspan="4" class="px-6 py-8 text-center text-gray-600 italic">Personnel directory temporarily unavailable.</td></tr>'
-    badge.innerText = "OFFLINE"
-  }
-}
-
 function renderBudgetScreen() {
   contentContainer.innerHTML = `
     <div class="max-w-3xl mx-auto space-y-6">
@@ -1717,188 +1454,99 @@ function renderCompanyProfileScreen() {
   }
 }
 
-// --- Role Management (Admin) ---
-async function renderRoleManagementScreen() {
+function renderRoleManagementScreen() {
+  const roleStats = Object.keys(roles).map(id => ({
+    id,
+    ...roles[id],
+    userCount: Math.floor(Math.random() * 5) + 1 // Simulated for UI
+  }))
+
   contentContainer.innerHTML = `
-        <div class="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-700">
-            <div class="text-center space-y-2">
-                <h2 class="text-3xl font-black uppercase tracking-tighter text-purple-400">Role & <span class="text-white">Permission Hub</span></h2>
-                <p class="text-gray-500 text-sm font-medium italic">Define architectural roles and map screen-level access protocols.</p>
+    <div class="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-20">
+        <div class="flex justify-between items-center">
+            <div>
+                <h2 class="text-3xl font-black uppercase italic tracking-tighter">Identity <span class="text-purple-500">Access Control</span></h2>
+                <p class="text-gray-500 text-xs uppercase tracking-widest font-bold mt-1">Manage platform roles and permission tokens</p>
             </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-                <!-- Role Creation Form -->
-                <div class="lg:col-span-1 bg-[var(--card-bg)] border border-[var(--border-color)] p-6 rounded-[30px] shadow-2xl space-y-6">
-                    <h3 class="text-lg font-black uppercase tracking-widest text-white border-b border-white/5 pb-3 flex items-center gap-2">
-                        <span class="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></span>
-                        New Role
-                    </h3>
-                    
-                    <form id="role-creation-form" class="space-y-4">
-                        <div class="space-y-1.5">
-                            <label class="text-[10px] font-black text-gray-500 uppercase tracking-widest">Role Name</label>
-                            <input type="text" id="role-name-input" required class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-purple-500 text-white text-sm" placeholder="e.g. Content Lead">
-                        </div>
-                        <button type="submit" id="btn-create-role" class="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl transition-all shadow-xl uppercase tracking-widest text-[9px]">
-                           Initialize Role 💾
-                        </button>
-                    </form>
-                </div>
-
-                <!-- Existing Roles Matrix -->
-                <div class="lg:col-span-3 space-y-6" id="roles-matrix-container">
-                    <!-- Loaded dynamically -->
-                    <div class="flex items-center justify-center py-24 bg-white/5 rounded-[30px] border border-dashed border-white/10 text-gray-500">
-                         SYNCING NODES...
-                    </div>
-                </div>
-            </div>
+            <button class="px-6 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-black rounded-xl text-[10px] uppercase tracking-widest shadow-lg transition-all flex items-center gap-2">
+                <span>ADD NEW SEAT</span>
+                <span class="text-lg">+</span>
+            </button>
         </div>
-    `
 
-  loadRolesMatrix()
-
-  // Form handler
-  document.getElementById('role-creation-form').onsubmit = async (e) => {
-    e.preventDefault()
-    const name = document.getElementById('role-name-input').value
-    const btn = document.getElementById('btn-create-role')
-    btn.disabled = true
-
-    try {
-      const res = await fetch(`${API_BASE}/rbac/roles`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name })
-      })
-      if (res.ok) {
-        showNotification(`ROLE CREATED: '${name}' is now active.`, "success")
-        document.getElementById('role-creation-form').reset()
-        loadRolesMatrix()
-      }
-    } catch (e) {
-      showNotification("Protocol Error: Could not reach backend.", "error")
-    } finally {
-      btn.disabled = false
-    }
-  }
-}
-
-async function loadRolesMatrix() {
-  const container = document.getElementById('roles-matrix-container')
-
-  try {
-    const [rolesRes, screensRes] = await Promise.all([
-      fetch(`${API_BASE}/rbac/roles`),
-      fetch(`${API_BASE}/rbac/screens`)
-    ])
-
-    const rolesData = await rolesRes.json()
-    const screens = await screensRes.json()
-
-    container.innerHTML = rolesData.map(role => {
-      const isSystemRole = ['Admin', 'CMO', 'PPC', 'Expert'].includes(role.name)
-
-      return `
-                <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-[30px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-                    <!-- Role Header -->
-                    <div class="p-5 bg-white/5 border-b border-white/5 flex justify-between items-center">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-2xl bg-purple-900/40 border border-purple-500/30 flex items-center justify-center font-black text-purple-400">
-                                ${role.name[0].toUpperCase()}
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            ${roleStats.map(role => `
+                <div class="bg-[var(--card-bg)] border border-[var(--border-color)] p-6 rounded-3xl hover:border-purple-500/30 transition-all group relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 w-24 h-24 bg-purple-500/5 rounded-full blur-2xl group-hover:bg-purple-500/10 transition-all"></div>
+                    
+                    <div class="flex items-start justify-between relative z-10">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-2xl bg-${role.themeColor}-900/30 border border-${role.themeColor}-500/30 flex items-center justify-center text-${role.themeColor}-400 font-black text-xl shadow-inner">
+                                ${role.icon}
                             </div>
                             <div>
-                                <h4 class="text-white font-black uppercase tracking-tighter leading-tight">${role.name} ROLE</h4>
-                                <p class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">UID: RL-${role.id.toString().padStart(3, '0')}</p>
+                                <h4 class="text-lg font-black uppercase tracking-tight">${role.displayName}</h4>
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span class="text-[10px] text-gray-400 font-black uppercase tracking-widest">${role.userCount} Active Users</span>
+                                </div>
                             </div>
                         </div>
                         <div class="flex gap-2">
-                            <button class="save-perms-btn px-4 py-2 bg-emerald-600/20 text-emerald-500 border border-emerald-500/30 rounded-lg text-[9px] font-black uppercase hover:bg-emerald-500 hover:text-white transition-all shadow-lg" data-id="${role.id}">Save Sync ✅</button>
-                            ${!isSystemRole ? `<button class="delete-role-btn px-4 py-2 bg-rose-900/30 text-rose-500 border border-rose-500/20 rounded-lg text-[9px] font-black uppercase hover:bg-rose-500 hover:text-white transition-all shadow-lg" data-id="${role.id}" data-name="${role.name}">Delete 🗑️</button>` : ''}
+                            <button class="p-2 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-white transition-all">⚙️</button>
+                            <button class="p-2 hover:bg-gray-800 rounded-lg text-gray-500 hover:text-rose-500 transition-all">🔒</button>
                         </div>
                     </div>
 
-                    <!-- Screen Perms Grid -->
-                    <div class="p-6">
-                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3" id="perms-grid-${role.id}">
-                            ${screens.map(screen => `
-                                <label class="flex items-center gap-2 p-3 bg-black/30 border border-white/5 rounded-xl cursor-pointer hover:border-purple-500/30 hover:bg-white/5 transition-all group">
-                                    <input type="checkbox" class="screen-check w-4 h-4 accent-purple-500" data-role="${role.id}" data-screen="${screen.id}" value="${screen.id}">
-                                    <div>
-                                        <p class="text-[10px] font-bold text-gray-300 group-hover:text-white transition-colors">${screen.displayName}</p>
-                                        <p class="text-[8px] text-gray-600 uppercase font-black tracking-widest group-hover:text-purple-400 transition-colors">${screen.name}</p>
-                                    </div>
-                                </label>
+                    <div class="mt-6 space-y-3 relative z-10">
+                        <p class="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-2">Enabled Modules</p>
+                        <div class="flex flex-wrap gap-2">
+                            ${role.screens.map(screen => `
+                                <span class="px-3 py-1 bg-[var(--bg-color)] border border-[#1F2430] rounded-full text-[9px] font-black text-gray-400 uppercase tracking-tighter flex items-center gap-1.5">
+                                    <span>${screen.icon}</span>
+                                    <span>${screen.label}</span>
+                                </span>
                             `).join('')}
                         </div>
                     </div>
+
+                    <div class="mt-8 pt-6 border-t border-[#1F2430] flex justify-between items-center relative z-10">
+                        <div class="flex -space-x-2">
+                            ${Array(role.userCount).fill(0).map((_, i) => `
+                                <div class="w-8 h-8 rounded-full border-2 border-[#151921] bg-gray-800 flex items-center justify-center text-[10px] font-black uppercase overflow-hidden">
+                                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=${role.id}${i}" class="w-full h-full object-cover">
+                                </div>
+                            `).join('')}
+                        </div>
+                        <button class="text-[10px] font-black text-purple-400 hover:text-purple-300 uppercase tracking-widest transition-all">Manage Permissions →</button>
+                    </div>
                 </div>
-            `
-    }).join('')
+            `).join('')}
+        </div>
 
-    // Fetch and set initial checkbox values
-    for (const role of rolesData) {
-      const res = await fetch(`${API_BASE}/rbac/role-permissions/${role.id}`)
-      if (res.ok) {
-        const grantedScreenIds = await res.json()
-        const checkboxes = document.querySelectorAll(`input[data-role="${role.id}"]`)
-        checkboxes.forEach(cb => {
-          if (grantedScreenIds.includes(parseInt(cb.value))) cb.checked = true
-        })
-      }
-    }
-
-    // Add Event Listeners
-    document.querySelectorAll('.save-perms-btn').forEach(btn => {
-      btn.onclick = async () => {
-        const roleId = parseInt(btn.dataset.id)
-        const checked = Array.from(document.querySelectorAll(`input[data-role="${roleId}"]:checked`)).map(cb => parseInt(cb.value))
-
-        btn.disabled = true
-        const originalText = btn.innerText
-        btn.innerText = "SYNCING..."
-
-        try {
-          const res = await fetch(`${API_BASE}/rbac/role-permissions`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ roleId, screenIds: checked })
-          })
-          if (res.ok) {
-            showNotification("ACCESS PROTOCOL SYNCED", "success")
-          }
-        } catch (e) {
-          showNotification("Sync Failed", "error")
-        } finally {
-          btn.disabled = false
-          btn.innerText = originalText
-        }
-      }
-    })
-
-    document.querySelectorAll('.delete-role-btn').forEach(btn => {
-      btn.onclick = async () => {
-        const roleId = btn.dataset.id
-        const name = btn.dataset.name
-        if (!confirm(`Confirm destruction of the '${name}' identity protocol?`)) return
-
-        try {
-          const res = await fetch(`${API_BASE}/rbac/roles/${roleId}`, { method: 'DELETE' })
-          if (res.ok) {
-            showNotification(`DECOMMISSIONED: '${name}' role deleted.`, "success")
-            loadRolesMatrix()
-          }
-        } catch (e) {
-          showNotification("Deletion Request Failure.", "error")
-        }
-      }
-    })
-
-  } catch (e) {
-    container.innerHTML = `<div class="p-8 text-center text-rose-500 font-bold italic border border-rose-500/20 bg-rose-500/5 rounded-3xl">Neural Link Failure: Role matrix offline.</div>`
-  }
+        <!-- System Logs / Security Preview -->
+        <div class="bg-[var(--card-bg)] border border-dashed border-[var(--border-color)] p-8 rounded-3xl">
+            <h3 class="text-sm font-black text-white uppercase tracking-widest mb-6 flex items-center gap-2">
+                <span class="text-purple-500">🛡️</span> Security Access Logs
+            </h3>
+            <div class="space-y-4">
+                ${[1, 2, 3].map(i => `
+                    <div class="flex items-center justify-between py-3 border-b border-[#1F2430] last:border-0 border-dashed">
+                        <div class="flex items-center gap-4">
+                            <div class="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 text-xs">✓</div>
+                            <div>
+                                <p class="text-[11px] font-bold text-gray-200">Role Elevation Authorized: <span class="text-purple-400">${['PPC Specialist', 'CMO Dashboard', 'Marketing Expert'][i - 1]}</span></p>
+                                <p class="text-[9px] text-gray-500 uppercase tracking-widest">User ID: system_auth_882${i} • 24 Feb 2026, 11:55 AM</p>
+                            </div>
+                        </div>
+                        <span class="text-[9px] font-black text-gray-600 tracking-tighter">IP: 192.168.1.10${i}</span>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    </div>
+  `
 }
-
 
 function renderCalendarScreen() {
   contentContainer.innerHTML = `
@@ -2747,81 +2395,6 @@ function renderDeploySelectionScreen() {
           modal.classList.add('hidden')
           showNotification('Advanced TikTok parameters attached to batch.', 'success')
         }
-      } else if (platform === 'Facebook') {
-        const config = state.marketingData.platformConfig.facebook
-        modalContent.innerHTML = `
-            <div class="flex flex-col space-y-1 mb-2">
-                <h3 class="text-2xl font-black uppercase italic tracking-tighter text-white">Facebook Dispatch Config</h3>
-                <p class="text-gray-500 text-[10px] font-medium uppercase tracking-widest">Setup parameters for this specific deployment batch.</p>
-            </div>
-            
-            <div class="max-h-[60vh] overflow-y-auto pr-2 space-y-6 custom-scrollbar pb-4">
-                <div class="space-y-4">
-                    <h4 class="text-[10px] font-bold text-[#1877F2] uppercase tracking-widest border-b border-[#1877F2]/20 pb-1">Campaign Strategy</h4>
-                    <div class="space-y-1">
-                        <label class="text-[8px] font-black text-gray-500 uppercase">Campaign Name</label>
-                        <input type="text" id="fb-deploy-camp-name" value="${config.campaign_name}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-[#1877F2] text-xs font-bold text-white">
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-1">
-                            <label class="text-[8px] font-black text-gray-500 uppercase">Objective</label>
-                            <select id="fb-deploy-objective" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-[#1877F2] text-xs font-bold text-white">
-                                <option value="OUTCOME_TRAFFIC" ${config.objective === 'OUTCOME_TRAFFIC' ? 'selected' : ''}>Traffic</option>
-                                <option value="OUTCOME_ENGAGEMENT" ${config.objective === 'OUTCOME_ENGAGEMENT' ? 'selected' : ''}>Engagement</option>
-                                <option value="OUTCOME_SALES" ${config.objective === 'OUTCOME_SALES' ? 'selected' : ''}>Sales</option>
-                                <option value="OUTCOME_LEADS" ${config.objective === 'OUTCOME_LEADS' ? 'selected' : ''}>Leads</option>
-                            </select>
-                        </div>
-                        <div class="space-y-1">
-                            <label class="text-[8px] font-black text-gray-500 uppercase">Daily Budget ($)</label>
-                            <input type="number" id="fb-deploy-budget" value="${config.daily_budget}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-[#1877F2] text-sm font-black text-white">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-1">
-                            <label class="text-[8px] font-black text-gray-500 uppercase">Start Date</label>
-                            <input type="date" id="fb-deploy-start" value="${config.schedule_start}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-[#1877F2] text-[11px] font-bold text-white">
-                        </div>
-                        <div class="space-y-1">
-                            <label class="text-[8px] font-black text-gray-500 uppercase">End Date</label>
-                            <input type="date" id="fb-deploy-end" value="${config.schedule_end}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-[#1877F2] text-[11px] font-bold text-white">
-                        </div>
-                    </div>
-                    <div class="space-y-1">
-                        <label class="text-[8px] font-black text-gray-500 uppercase">Facebook Page ID</label>
-                        <input type="text" id="fb-deploy-page-id" value="${config.page_id}" class="w-full bg-[var(--bg-color)] border border-[var(--border-color)] p-3 rounded-xl outline-none focus:border-[#1877F2] text-xs font-bold text-white">
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-4 pt-4 border-t border-[var(--border-color)]">
-                <button id="fb-deploy-cancel" class="py-4 bg-[#1A1F29] hover:bg-[#2A2F3A] text-gray-400 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all">Cancel</button>
-                <button id="fb-deploy-save" class="py-4 bg-gradient-to-r from-blue-600 to-blue-800 hover:from-blue-500 hover:to-blue-700 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-xl shadow-blue-950/20">Commit & Attach 💾</button>
-            </div>
-        `
-        modal.classList.remove('hidden')
-
-        document.getElementById('fb-deploy-cancel').onclick = () => {
-          modal.classList.add('hidden')
-        }
-
-        document.getElementById('fb-deploy-save').onclick = () => {
-          const getValue = (id) => document.getElementById(id)?.value || ''
-
-          config.campaign_name = getValue('fb-deploy-camp-name')
-          config.objective = getValue('fb-deploy-objective')
-          config.daily_budget = getValue('fb-deploy-budget')
-          config.schedule_start = getValue('fb-deploy-start')
-          config.schedule_end = getValue('fb-deploy-end')
-          config.page_id = getValue('fb-deploy-page-id')
-
-          selectedPlatforms.add('Facebook')
-          btn.classList.add('border-[#1877F2]', 'bg-[#1877F2]/5')
-          indicator.classList.add('bg-[#1877F2]', 'border-[#1877F2]')
-
-          modal.classList.add('hidden')
-          showNotification('Advanced Facebook parameters attached to batch.', 'success')
-        }
       } else {
         // Standard toggle for other platforms
         if (selectedPlatforms.has(platform)) {
@@ -2845,22 +2418,15 @@ function renderDeploySelectionScreen() {
       return
     }
 
-    // Platform Payload Inspection (Step 39 & Step 65 Requirement)
-    if (selectedPlatforms.has('TikTok') || selectedPlatforms.has('Facebook')) {
+    // 1. TikTok Payload Inspection (Step 39 Requirement)
+    if (selectedPlatforms.has('TikTok')) {
       const sampleAsset = assets[0]
-      let combinedPreviewPayload = {}
-
-      if (selectedPlatforms.has('TikTok')) {
-        combinedPreviewPayload.TikTok = await deployToTikTok(sampleAsset, API_BASE, state, true)
-      }
-      if (selectedPlatforms.has('Facebook')) {
-        combinedPreviewPayload.Facebook = await deployToFacebook(sampleAsset, API_BASE, state, true)
-      }
+      const previewPayload = await deployToTikTok(sampleAsset, API_BASE, state, true)
 
       modalContent.innerHTML = `
         <div class="flex flex-col space-y-1 mb-4">
             <h3 class="text-2xl font-black uppercase italic tracking-tighter text-amber-500">Payload Inspection 🔍</h3>
-            <p class="text-gray-500 text-[10px] font-medium uppercase tracking-widest">Verify the ${Array.from(selectedPlatforms).join('/')} API data structure before final dispatch.</p>
+            <p class="text-gray-500 text-[10px] font-medium uppercase tracking-widest">Verify the TikTok API data structure before final dispatch.</p>
         </div>
 
         <div class="bg-black/60 rounded-2xl p-4 border border-white/5 overflow-hidden">
@@ -2869,7 +2435,7 @@ function renderDeploySelectionScreen() {
                 <span class="text-[8px] px-2 py-0.5 bg-amber-500/10 text-amber-500 rounded uppercase font-bold border border-amber-500/20">Preview Mode</span>
             </div>
             <pre class="text-[10px] text-cyan-400 font-mono h-[40vh] overflow-y-auto custom-scrollbar leading-relaxed">
-${JSON.stringify(combinedPreviewPayload, null, 2)}
+${JSON.stringify(previewPayload, null, 2)}
             </pre>
         </div>
 
@@ -2913,82 +2479,12 @@ ${JSON.stringify(combinedPreviewPayload, null, 2)}
             console.warn(`Library archive failed for ${asset.id}, continuing...`)
           }
 
-          // 2. Deploy to selected platforms
+          // 2. Deploy to TikTok if selected
           if (selectedPlatforms.has('TikTok')) {
             try {
               await deployToTikTok(asset, API_BASE, state)
             } catch (err) {
               console.error(`TikTok deployment failed for ${asset.id}`)
-            }
-          }
-          if (selectedPlatforms.has('Facebook')) {
-            try {
-              const fbResult = await deployToFacebook(asset, API_BASE, state)
-
-              // Updated: Premium Feedback for Facebook deployment
-              if (fbResult) {
-                const steps = [
-                  { label: 'Campaign Managed', id: fbResult.campaign_id, icon: '📢', real: fbResult.steps?.[0]?.real },
-                  { label: 'Ad Set Strategized', id: fbResult.adset_id, icon: '🎯', real: fbResult.steps?.[1]?.real },
-                  { label: 'Creative Synthesized', id: fbResult.creative_id, icon: '🖼️', real: fbResult.steps?.[2]?.real },
-                  { label: 'Ad Asset Dispatched', id: fbResult.ad_id, icon: '🚀', real: fbResult.steps?.[3]?.real },
-                ]
-                
-                const isReal = fbResult.success;
-                const finalId = fbResult.ad_id || 'NO_ID_RETURNED';
-
-                modalContent.innerHTML = `
-                  <div class="space-y-5">
-                    <div class="text-center space-y-1">
-                      <div class="text-4xl mb-2">${isReal ? '✅' : '⚠️'}</div>
-                      <h3 class="text-2xl font-black uppercase italic tracking-tighter ${isReal ? 'text-emerald-400' : 'text-amber-400'}">Facebook Deployment</h3>
-                      <p class="text-gray-500 text-[10px] font-medium uppercase tracking-widest">${isReal ? 'All API stages completed successfully' : 'Deployment completed with status: ' + fbResult.status} for <span class="text-white font-bold">${asset.title || 'Asset'}</span></p>
-                    </div>
-                    
-                    ${isReal ? `
-                    <div class="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 text-center">
-                      <p class="text-[9px] font-black text-emerald-400 uppercase tracking-widest mb-1">Final Facebook Ad ID</p>
-                      <p class="text-xl font-black text-white font-mono break-all">${finalId}</p>
-                    </div>
-                    ` : ''}
-
-                    <div class="space-y-2">
-                      ${steps.map((s, i) => `
-                        <div class="flex items-center gap-4 bg-black/40 border ${s.real ? 'border-emerald-500/20' : 'border-rose-500/20'} rounded-2xl p-3 animate-in fade-in slide-in-from-left-4" style="animation-delay:${i * 100}ms">
-                          <div class="w-9 h-9 rounded-xl ${s.real ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-rose-500/10 border border-rose-500/30'} flex items-center justify-center text-base flex-shrink-0">${s.icon}</div>
-                          <div class="flex-1 min-w-0">
-                            <p class="text-[10px] font-black ${s.real ? 'text-emerald-400' : 'text-rose-400'} uppercase tracking-widest">${s.label}</p>
-                            <p class="text-[9px] text-gray-500 font-mono truncate">${s.id}</p>
-                          </div>
-                          <div class="w-5 h-5 rounded-full ${s.real ? 'bg-emerald-500' : 'bg-rose-500'} flex items-center justify-center flex-shrink-0">
-                            <span class="text-[9px] text-black font-black">${s.real ? '✓' : '×'}</span>
-                          </div>
-                        </div>
-                      `).join('')}
-                    </div>
-                    ${!isReal ? `
-                    <div class="bg-rose-900/20 border border-rose-500/30 rounded-2xl p-4">
-                      <p class="text-[9px] font-black text-rose-400 uppercase tracking-widest mb-1">⚠️ Deployment Issue</p>
-                      <p class="text-[9px] text-gray-400 leading-relaxed">${fbResult.status === 'PARTIAL_OR_MOCK' ? 'System in Simulation Mode OR Token Missing Permissions. Check Console for details.' : 'An error occurred during dispatch.'}</p>
-                    </div>
-                    ` : `
-                    <div class="bg-blue-900/20 border border-[#1877F2]/30 rounded-2xl p-4">
-                      <p class="text-[9px] font-black text-[#1877F2] uppercase tracking-widest mb-1">⚠️ Compliance Reminder</p>
-                      <p class="text-[9px] text-gray-400 leading-relaxed">Ensure Sandbox 'Accept TOS' is acknowledged on the Facebook Developer Console and your token has <span class="text-white font-bold">ads_management</span> permission before going Live.</p>
-                    </div>
-                    `}
-                    <button id="fb-stepper-close" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl uppercase tracking-widest text-[10px] transition-all shadow-lg">Continue ➤</button>
-                  </div>
-                `
-                modal.classList.remove('hidden')
-                document.getElementById('fb-stepper-close').onclick = () => modal.classList.add('hidden')
-                
-                if (!isReal) {
-                   showNotification(`Facebook Deployment Issue: ${fbResult.status}`, 'error');
-                }
-              }
-            } catch (err) {
-              console.error(`Facebook deployment failed for ${asset.id}`)
             }
           }
 
@@ -3016,97 +2512,6 @@ ${JSON.stringify(combinedPreviewPayload, null, 2)}
       }
     }
   }
-}
-
-function renderAdPerformanceScreen() {
-  const mockCampaigns = [
-    { platform: 'Facebook', icon: '👥', name: 'AI Spring Campaign 2026', status: 'ACTIVE', spend: '$1,240', reach: '48.2K', impressions: '152K', clicks: '3,810', ctr: '2.51%', cpm: '$8.16' },
-    { platform: 'TikTok', icon: '🎵', name: 'Lead Gen Global Batch', status: 'PAUSED', spend: '$880', reach: '32.7K', impressions: '98K', clicks: '2,141', ctr: '2.18%', cpm: '$8.98' },
-    { platform: 'Facebook', icon: '👥', name: 'AI Brand Awareness Q1', status: 'COMPLETED', spend: '$3,500', reach: '210K', impressions: '640K', clicks: '12,800', ctr: '2.00%', cpm: '$5.47' },
-    { platform: 'Instagram', icon: '📸', name: 'Retargeting - Creative Set A', status: 'ACTIVE', spend: '$420', reach: '19.1K', impressions: '57K', clicks: '980', ctr: '1.72%', cpm: '$7.37' },
-  ]
-
-  const statusColor = (s) => s === 'ACTIVE' ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30' : s === 'PAUSED' ? 'text-amber-400 bg-amber-500/10 border-amber-500/30' : 'text-gray-400 bg-gray-500/10 border-gray-500/30'
-
-  contentContainer.innerHTML = `
-    <div class="space-y-6 pb-10">
-      <!-- Header -->
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-3xl font-black uppercase italic tracking-tighter">Ad Performance</h2>
-          <p class="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Live metrics across all deployed campaigns</p>
-        </div>
-        <div class="flex gap-3">
-          <span class="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-emerald-400 text-[10px] font-black uppercase tracking-widest">● 2 Active</span>
-          <span class="px-4 py-2 bg-[var(--card-bg)] border border-[var(--border-color)] rounded-xl text-[10px] font-black uppercase tracking-widest">↻ Refresh</span>
-        </div>
-      </div>
-
-      <!-- KPI Cards -->
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-        ${[
-      { label: 'Total Spend', value: '$6,040', icon: '💸', color: 'text-rose-400' },
-      { label: 'Total Reach', value: '310K', icon: '👁', color: 'text-cyan-400' },
-      { label: 'Total Clicks', value: '19,731', icon: '🖱️', color: 'text-purple-400' },
-      { label: 'Avg CTR', value: '2.10%', icon: '📈', color: 'text-emerald-400' },
-    ].map(k => `
-          <div class="bg-[var(--card-bg)] border border-[var(--border-color)] p-5 rounded-2xl space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-[9px] font-black text-gray-500 uppercase tracking-widest">${k.label}</span>
-              <span class="text-xl">${k.icon}</span>
-            </div>
-            <p class="text-2xl font-black ${k.color}">${k.value}</p>
-          </div>
-        `).join('')}
-      </div>
-
-      <!-- Campaign Table -->
-      <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-3xl overflow-hidden shadow-2xl">
-        <div class="p-6 border-b border-[var(--border-color)] flex items-center justify-between">
-          <h3 class="text-sm font-black uppercase tracking-widest">Campaign Breakdown</h3>
-          <span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Simulated data — Connect Facebook Insights API for live data</span>
-        </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left">
-            <thead class="bg-black/30">
-              <tr>
-                ${['Platform', 'Campaign', 'Status', 'Spend', 'Reach', 'Impressions', 'Clicks', 'CTR', 'CPM'].map(h => `
-                  <th class="px-5 py-3 text-[8px] font-black text-gray-500 uppercase tracking-widest whitespace-nowrap">${h}</th>
-                `).join('')}
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-[var(--border-color)]">
-              ${mockCampaigns.map(c => `
-                <tr class="hover:bg-white/5 transition-colors">
-                  <td class="px-5 py-4">
-                    <span class="flex items-center gap-2 text-sm font-black">${c.icon} ${c.platform}</span>
-                  </td>
-                  <td class="px-5 py-4">
-                    <p class="text-[11px] font-bold text-white max-w-[160px] truncate">${c.name}</p>
-                  </td>
-                  <td class="px-5 py-4">
-                    <span class="px-2 py-1 rounded-lg border text-[8px] font-black uppercase ${statusColor(c.status)}">${c.status}</span>
-                  </td>
-                  <td class="px-5 py-4 text-[11px] font-black text-rose-400">${c.spend}</td>
-                  <td class="px-5 py-4 text-[11px] font-bold text-cyan-400">${c.reach}</td>
-                  <td class="px-5 py-4 text-[11px] font-bold">${c.impressions}</td>
-                  <td class="px-5 py-4 text-[11px] font-bold text-purple-400">${c.clicks}</td>
-                  <td class="px-5 py-4 text-[11px] font-bold text-emerald-400">${c.ctr}</td>
-                  <td class="px-5 py-4 text-[11px] font-bold">${c.cpm}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Note -->
-      <div class="bg-[#1877F2]/5 border border-[#1877F2]/20 rounded-2xl p-4">
-        <p class="text-[9px] font-black text-[#1877F2] uppercase tracking-widest mb-1">🔗 Connect Live Data</p>
-        <p class="text-[9px] text-gray-400 leading-relaxed">To enable live ad insights, configure your <span class="text-white font-bold">Facebook Insights API</span> token and <span class="text-white font-bold">TikTok Reporting API</span> in Platform Config → Social Ecosystem. The backend endpoint <span class="font-mono text-cyan-400">/api/ads/insights</span> will aggregate results from all platforms.</p>
-      </div>
-    </div>
-  `
 }
 
 function renderNotificationsScreen() {
@@ -3183,7 +2588,7 @@ function renderLoginScreen() {
         state.isAuthenticated = true
         state.token = data.token
         state.user = data.user
-        state.activeRole = data.user.role
+        state.activeRole = data.user.role // Auto-switch to their role
 
         localStorage.setItem('mt_token', data.token)
         localStorage.setItem('mt_user', JSON.stringify(data.user))
@@ -3273,4 +2678,4 @@ async function initApp() {
   switchRole(initialRole)
 }
 
-initApp();
+initApp()

@@ -335,5 +335,43 @@
   - [x] Create/Update backend endpoints to handle new role creation, editing, and mapping roles to screens (`RoleScreens` table).
   - [x] Ensure that changes to role permissions are immediately reflected in the database and sidebar for relevant users.
 
+## Facebook Ad Integration & Deployment
 
+- [x] **Step 59: C# Backend Facebook Ads Service**
+  - [x] Create `FacebookAdsService.cs` in the backend.
+  - [x] Implement `CreateCampaignAsync` to send requests to Facebook Graph API `v19.0/{AdAccountId}/campaigns`.
+  - [x] Include parameters: `name`, `objective=OUTCOME_TRAFFIC`, `status=PAUSED`, `special_ad_categories=[]`, and `access_token`.
 
+- [x] **Step 60: Frontend Facebook Ad Dispatch UI**
+  - [x] Create a simplified dispatch form in Vite for Facebook Ads.
+  - [x] Implement fetch logic to backend (e.g., `/api/ads/create-campaign`) sending the campaign name and receiving the campaign ID.
+
+- [x] **Step 61: Facebook Ad Complete Deployment Flow (API Sequence)**
+  - [x] **Create Campaign:** Trigger backend endpoint to obtain `campaign_id`.
+  - [x] **Create Ad Set:** Target `/act_<ID>/adsets` with `campaign_id`, `daily_budget`, and `billing_event='IMPRESSIONS'`.
+  - [x] **Upload Image (Optional):** Target `/act_<ID>/adimages` to get `image_hash`.
+  - [x] **Create Ad Creative:** Target `/act_<ID>/adcreatives` with `image_hash` and copy (Primary Text, Headline).
+  - [x] **Create Ad:** Target `/act_<ID>/ads` using the new Ad Set ID and Creative ID.
+
+- [x] **Step 62: Facebook Compliance & UI Enhancements**
+  - [x] Ensure the Sandbox 'Accept TOS' has been acknowledged on the developer console.
+  - [x] Ensure the API token has `ads_management` permission.
+  - [x] Implement a premium "Success Notification" / Stepper using the custom modal system for each stage of the API sequence.
+
+## Ad Performance & Analytics
+
+- [x] **Step 63: Build Ad Performance Matrix/Report UI**
+  - [x] Create a new UI screen/module to display deployed ad metrics (Campaign Name, Status, Spend, Reach, Impressions, Clicks, etc.).
+  - [x] Implement a backend endpoint to fetch ad insights from the respective platforms (e.g., Facebook Insights API).
+  - [x] Design a data table or set of metric cards to visually represent the performance data.
+
+## Facebook Dispatch Configuration & Payload Preview
+
+- [x] **Step 64: Facebook Dispatch Configuration Modal**
+  - [x] Update the "Platform Selection" screen so that clicking the "Facebook" button opens a "Facebook Dispatch Config" modal (similar to the TikTok flow).
+  - [x] Include necessary input fields in this modal (e.g., Campaign Name, Objective, Daily Budget, Schedule, Page ID).
+  - [x] Ensure these parameters are saved to the global state when the user configures them.
+
+- [x] **Step 65: Facebook Payload Inspection / Preview**
+  - [x] Modify the final "Dispatch / Multi-Post" button logic to include Facebook payload review.
+  - [x] When posting, display a "Payload Inspection" form/modal specific to Facebook that shows the structured JSON payload (Ad Set, Creatives, Targeting) before the final API call is made.

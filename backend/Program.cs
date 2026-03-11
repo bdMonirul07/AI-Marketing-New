@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Backend.Data;
 using Backend.Models;
+using Backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
@@ -25,6 +26,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddHttpClient<FacebookAdsService>();
 
 // JWT Configuration
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "default_secret_key_at_least_32_chars_long";
@@ -645,6 +648,116 @@ app.MapPost("/api/gemini/questions", async (GeminiRequest req, IConfiguration co
     return Results.Problem("Maximum capacity retries reached.");
 });
 
+app.MapPost("/api/deploy/facebook", async (FacebookDeployRequest req, FacebookAdsService fbService) =>
+{
+    try
+    {
+        Console.WriteLine($"[FACEBOOK] Starting Deployment Sequence for Campaign: {req.campaign.name}");
+
+        string ExtractId(JsonElement json) =>
+            json.TryGetProperty("id", out var id) ? id.GetString()! : null!;
+
+        string ExtractError(JsonElement json) =>
+            json.TryGetProperty("error", out var err) && err.TryGetProperty("message", out var msg) ? msg.GetString()! : null!;
+
+        // 1. Image Upload
+        string imageHash = "mock_image_hash_12345";
+        string? imageError = null;
+        bool imageReal = false;
+
+        if (!string.IsNullOrEmpty(req.assetId))
+        {
+            string assetPath = Path.Combine(AssetsFolder, req.assetId);
+            if (!File.Exists(assetPath)) assetPath = Path.Combine(LibraryFolder, req.assetId);
+
+            if (File.Exists(assetPath))
+            {
+                var imgRespStr = await fbService.UploadImageAsync(assetPath);
+                Console.WriteLine($"[FACEBOOK] Image Upload: {imgRespStr}");
+                var imgJson = JsonSerializer.Deserialize<JsonElement>(imgRespStr);
+                
+                if (imgJson.TryGetProperty("images", out var images))
+                {
+                    foreach (var imgProp in images.EnumerateObject())
+                    {
+                        if (imgProp.Value.TryGetProperty("hash", out var h))
+                        {
+                            imageHash = h.GetString()!;
+                            imageReal = true;
+                            break;
+                        }
+                    }
+                }
+                if (!imageReal) imageError = ExtractError(imgJson);
+            }
+            else
+            {
+                imageError = "Asset file not found on server.";
+            }
+        }
+
+        // 2. Create Campaign
+        var campStr = await fbService.CreateCampaignAsync(req.campaign.name, req.campaign.objective, req.campaign.status);
+        Console.WriteLine($"[FACEBOOK] Campaign: {campStr}");
+        var campJson = JsonSerializer.Deserialize<JsonElement>(campStr);
+        string campaignId = ExtractId(campJson) ?? $"mock_camp_{Guid.NewGuid().ToString().Substring(0,8)}";
+        string? campaignError = ExtractError(campJson);
+        bool campaignReal = !campaignId.StartsWith("mock_");
+
+        // 3. Create Ad Set
+        var adSetStr = await fbService.CreateAdSetAsync(campaignId, req.adSet.name, req.adSet.daily_budget, req.adSet.status);
+        Console.WriteLine($"[FACEBOOK] AdSet: {adSetStr}");
+        var adSetJson = JsonSerializer.Deserialize<JsonElement>(adSetStr);
+        string adSetId = ExtractId(adSetJson) ?? $"mock_adset_{Guid.NewGuid().ToString().Substring(0,8)}";
+        string? adSetError = ExtractError(adSetJson);
+        bool adSetReal = !adSetId.StartsWith("mock_");
+
+        // 4. Create Creative
+        var creativeStr = await fbService.CreateAdCreativeAsync(req.creative.name, req.creative.object_story_spec.page_id, req.creative.object_story_spec.link_data.message, req.creative.object_story_spec.link_data.link, imageHash, req.creative.status);
+        Console.WriteLine($"[FACEBOOK] Creative: {creativeStr}");
+        var creativeJson = JsonSerializer.Deserialize<JsonElement>(creativeStr);
+        string creativeId = ExtractId(creativeJson) ?? $"mock_creative_{Guid.NewGuid().ToString().Substring(0,8)}";
+        string? creativeError = ExtractError(creativeJson);
+        bool creativeReal = !creativeId.StartsWith("mock_");
+
+        // 5. Create Ad
+        var adStr = await fbService.CreateAdAsync($"Ad_{req.campaign.name}", adSetId, creativeId, req.campaign.status);
+        Console.WriteLine($"[FACEBOOK] Ad: {adStr}");
+        var adJson = JsonSerializer.Deserialize<JsonElement>(adStr);
+        string adId = ExtractId(adJson) ?? $"mock_ad_{Guid.NewGuid().ToString().Substring(0,8)}";
+        string? adError = ExtractError(adJson);
+        bool adReal = !adId.StartsWith("mock_");
+
+        // Overall: all real = full success (including image)
+        bool fullyDeployed = imageReal && campaignReal && adSetReal && creativeReal && adReal;
+
+        return Results.Ok(new
+        {
+            success = fullyDeployed,
+            network = "Facebook",
+            steps = new[]
+            {
+                new { label = "Image Upload", id = imageHash,   real = imageReal,    error = imageError },
+                new { label = "Campaign",     id = campaignId,  real = campaignReal, error = campaignError },
+                new { label = "Ad Set",       id = adSetId,     real = adSetReal,    error = adSetError },
+                new { label = "Creative",     id = creativeId,  real = creativeReal, error = creativeError },
+                new { label = "Ad",           id = adId,        real = adReal,       error = adError }
+            },
+            image_hash   = imageHash,
+            campaign_id  = campaignId,
+            adset_id     = adSetId,
+            creative_id  = creativeId,
+            ad_id        = adId,
+            status       = fullyDeployed ? "LIVE_PAUSED" : "PARTIAL_OR_MOCK"
+        });
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"[FACEBOOK ERROR] {ex.Message}");
+        return Results.Problem(ex.Message);
+    }
+});
+
 app.MapPost("/api/gemini/follow-up", async (GeminiFollowUpRequest req, IConfiguration config) =>
 {
     var apiKey = config["Gemini:ApiKey"];
@@ -796,6 +909,43 @@ record TikTokTargeting(
 );
 
 record GeoLocations(string[] countries);
+
+record FacebookDeployRequest(FacebookCampaignPayload campaign, FacebookAdSetPayload adSet, FacebookCreativePayload creative, string assetId);
+
+record FacebookCampaignPayload(
+    string name,
+    string objective,
+    string status,
+    string[] special_ad_categories
+);
+
+record FacebookAdSetPayload(
+    string name,
+    long daily_budget,
+    string billing_event,
+    string optimization_goal,
+    string start_time,
+    string end_time,
+    object targeting,
+    string status
+);
+
+record FacebookCreativePayload(
+    string name,
+    FacebookObjectStorySpec object_story_spec,
+    string status
+);
+
+record FacebookObjectStorySpec(
+    string page_id,
+    FacebookLinkData link_data
+);
+
+record FacebookLinkData(
+    string message,
+    string link,
+    string image_hash
+);
 
 record GeminiRequest(string Brief);
 record GeminiFollowUpRequest(string OriginalBrief, string[] PreviousQuestions, string[] PreviousAnswers);
