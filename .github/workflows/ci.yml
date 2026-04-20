@@ -1,0 +1,59 @@
+# Task 91: CI/CD Pipeline
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore backend/backend.csproj
+
+      - name: Build backend
+        run: dotnet build backend/backend.csproj --no-restore -c Release
+
+      - name: Run unit tests
+        run: dotnet test backend.tests/backend.tests.csproj --no-restore --verbosity normal
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  docker-build:
+    needs: [backend-build-test, frontend-build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend Docker image
+        run: docker build -t ai-marketing-backend:${{ github.sha }} -f Dockerfile .
+
+      - name: Build frontend Docker image
+        run: docker build -t ai-marketing-frontend:${{ github.sha }} -f Dockerfile.frontend .

@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet build:*)",
+      "Bash(npx vite:*)",
+      "Bash(dotnet run:*)",
+      "Bash(curl:*)",
+      "Bash(PGPASSWORD='Orion123@' psql -h localhost -U Monirul007 -d postgres -c \"DROP DATABASE IF EXISTS \"\"MarketingAI\"\";\")",
+      "Bash(PGPASSWORD='Orion123@' psql -h localhost -U Monirul007 -d postgres -c \"CREATE DATABASE \"\"MarketingAI\"\";\")",
+      "Bash(where psql:*)",
+      "Read(//c/Program Files/PostgreSQL/**)",
+      "Read(//c/Program Files \\(x86\\)/**)",
+      "Bash(PGPASSWORD='Orion123@' \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -h localhost -U Monirul007 -d postgres -c \"DROP DATABASE IF EXISTS \\\\\"MarketingAI\\\\\";\" 2>&1)",
+      "Bash(PGPASSWORD='Orion123@' \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -h localhost -U Monirul007 -d postgres -c \"SELECT pg_terminate_backend\\(pid\\) FROM pg_stat_activity WHERE datname=''MarketingAI'' AND pid <> pg_backend_pid\\(\\);\")",
+      "Bash(PGPASSWORD='Orion123@' \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -h localhost -U Monirul007 -d postgres -c \"DROP DATABASE IF EXISTS \"\"MarketingAI\"\";\")",
+      "Bash(PGPASSWORD='Orion123@' \"/c/Program Files/PostgreSQL/16/bin/psql.exe\" -h localhost -U Monirul007 -d postgres -c \"CREATE DATABASE \"\"MarketingAI\"\";\")",
+      "Bash(taskkill //F //IM \"dotnet.exe\")",
+      "Bash(python -m json.tool)",
+      "Bash(netstat -ano)",
+      "Bash(taskkill //F //PID 19800)",
+      "Bash(taskkill //F //PID 6880)",
+      "Bash(xargs -I{} taskkill //F //PID {})",
+      "Bash(tasklist //FI \"IMAGENAME eq dotnet.exe\")",
+      "Bash(tasklist *)",
+      "Bash(npm run *)",
+      "Bash(PGPASSWORD='Orion123@' psql *)",
+      "Bash(PGPASSWORD='Orion123@' C:/Program Files/PostgreSQL/16/bin/psql.exe *)",
+      "Bash(taskkill *)"
+    ]
+  }
+}
