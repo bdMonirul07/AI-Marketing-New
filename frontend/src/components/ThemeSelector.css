@@ -1,0 +1,56 @@
+.theme-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-subtext);
+}
+
+.theme-label {
+    font-weight: 700;
+}
+
+.theme-select {
+    appearance: none;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 0.35rem 1.8rem 0.35rem 0.85rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    cursor: pointer;
+    background-image:
+        linear-gradient(45deg, transparent 50%, var(--color-subtext) 50%),
+        linear-gradient(135deg, var(--color-subtext) 50%, transparent 50%),
+        linear-gradient(to right, transparent, transparent);
+    background-position:
+        calc(100% - 14px) 50%,
+        calc(100% - 9px) 50%,
+        0 0;
+    background-size: 5px 5px, 5px 5px, 100% 100%;
+    background-repeat: no-repeat;
+}
+
+.theme-select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px rgba(178, 4, 14, 0.15);
+}
+
+.theme-switcher.compact {
+    font-size: 0.7rem;
+}
+
+.theme-switcher.compact .theme-select {
+    padding: 0.3rem 1.6rem 0.3rem 0.75rem;
+}
+
+@media (max-width: 860px) {
+    .theme-switcher {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}

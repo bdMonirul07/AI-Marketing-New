@@ -1,0 +1,220 @@
+.cmo-shell {
+    min-height: 100vh;
+    display: flex;
+    background: var(--color-bg);
+    color: var(--color-text);
+}
+
+.cmo-sidebar {
+    width: 280px;
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    padding: 1.75rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+}
+
+.cmo-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.cmo-brand-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: var(--color-accent);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+}
+
+.cmo-brand-name {
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: var(--color-primary);
+}
+
+.cmo-brand-sub {
+    font-size: 0.75rem;
+    color: var(--color-subtext);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+}
+
+.cmo-profile {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.9rem 1rem;
+    border-radius: 14px;
+    border: 1px solid var(--color-border);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.cmo-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--color-primary);
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.cmo-profile-name {
+    font-weight: 700;
+    color: var(--color-primary);
+}
+
+.cmo-profile-role {
+    font-size: 0.8rem;
+    color: var(--color-subtext);
+}
+
+.cmo-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.cmo-nav-link {
+    padding: 0.65rem 0.85rem;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 600;
+    color: var(--color-subtext);
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.cmo-nav-link:hover {
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--color-primary);
+}
+
+.cmo-nav-link.active {
+    background: rgba(var(--color-primary-rgb), 0.08);
+    color: var(--color-primary);
+}
+
+.cmo-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.cmo-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 2rem;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--glass-bg);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.cmo-topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    color: var(--color-subtext);
+}
+
+.cmo-divider {
+    width: 28px;
+    height: 2px;
+    background: var(--color-border);
+    border-radius: 999px;
+}
+
+.cmo-status {
+    color: var(--color-primary);
+}
+
+.cmo-topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+}
+
+.cmo-link {
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-primary);
+}
+
+.cmo-link:hover {
+    color: var(--color-accent);
+}
+
+.cmo-content {
+    flex: 1;
+    padding: 2.5rem 2.5rem 3rem;
+    overflow-y: auto;
+}
+
+@media (max-width: 1024px) {
+    .cmo-shell {
+        flex-direction: column;
+    }
+
+    .cmo-sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .cmo-nav {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 0.5rem;
+    }
+
+    .cmo-content {
+        padding: 2rem;
+    }
+}
+
+@media (max-width: 720px) {
+    .cmo-sidebar {
+        padding: 1.5rem;
+    }
+
+    .cmo-topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .cmo-topbar-actions {
+        flex-wrap: wrap;
+    }
+}

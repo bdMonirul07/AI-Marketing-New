@@ -50,7 +50,17 @@
       "PowerShell($env:PGPASSWORD = \"Orion123@\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -h localhost -U Monirul007 -d MarketingAI -c \"SELECT id, company_id, platform, account_name, account_id, status, LEFT\\(access_token, 20\\) as token_preview FROM company_ad_accounts ORDER BY company_id, platform;\" 2>&1)",
       "PowerShell($env:PGPASSWORD = \"Orion123@\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -h localhost -U Monirul007 -d MarketingAI -c \"SELECT id, name, status, facebook_campaign_id, platforms FROM campaigns ORDER BY id;\" 2>&1)",
       "PowerShell($env:PGPASSWORD = \"Orion123@\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -h localhost -U Monirul007 -d MarketingAI -c \"UPDATE campaigns SET platforms = '{facebook,google_ads,tiktok,youtube}' WHERE id = 6; SELECT id, name, status, platforms FROM campaigns WHERE id = 6;\" 2>&1)",
-      "PowerShell($env:PGPASSWORD = \"Orion123@\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -h localhost -U Monirul007 -d MarketingAI -c \"\\\\dt\" 2>&1)"
+      "PowerShell($env:PGPASSWORD = \"Orion123@\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\16\\\\bin\\\\psql.exe\" -h localhost -U Monirul007 -d MarketingAI -c \"\\\\dt\" 2>&1)",
+      "Bash(echo \"Backend started with PID $!\")",
+      "Bash(git checkout *)",
+      "Bash(pkill -f \"dotnet.*backend\")",
+      "Bash(git *)",
+      "Bash(Start-Process powershell *)",
+      "PowerShell(cd \"C:\\\\AI Marketing Git\\\\AI-Marketing-New\\\\backend\"; Start-Process powershell -ArgumentList '-NoExit', '-Command', 'cd \"C:\\\\AI Marketing Git\\\\AI-Marketing-New\\\\backend\"; dotnet run' -WindowStyle Normal)",
+      "Bash(Get-ChildItem -Path \"C:\\\\AI Marketing Git\\\\AI-Marketing-New\" -Directory)",
+      "Bash(Select-Object Name)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\AI Marketing Git\\\\AI-Marketing-New\\\\frontend\" -Directory | Where-Object {$_.Name -ne 'node_modules' -and $_.Name -ne 'dist'})",
+      "PowerShell(head *)"
     ]
   }
 }

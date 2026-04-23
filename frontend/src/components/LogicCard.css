@@ -1,0 +1,26 @@
+.logic-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 1.5rem;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.logic-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.logic-card.selected {
+    border-color: var(--color-accent);
+    background-color: #fff9f9;
+    /* Very subtle red tint */
+    box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.logic-card-title {
+    margin-top: 0;
+    color: var(--color-primary);
+}
