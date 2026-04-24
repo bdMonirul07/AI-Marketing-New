@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Marketing Platform — Task Status</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0d1117;color:#e6edf3;min-height:100vh}
+header{background:#161b22;border-bottom:1px solid #30363d;padding:28px 48px;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:22px;font-weight:800;letter-spacing:-0.5px}
+header h1 span{color:#58a6ff}
+.badge{background:#21262d;border:1px solid #30363d;border-radius:20px;padding:5px 14px;font-size:12px;color:#8b949e}
+main{max-width:1100px;margin:0 auto;padding:36px 48px}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:36px}
+.stat{background:#161b22;border:1px solid #30363d;border-radius:14px;padding:20px;text-align:center}
+.stat .n{font-size:36px;font-weight:900;line-height:1}
+.stat .l{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#8b949e;margin-top:6px}
+.done-n{color:#3fb950}.pend-n{color:#f78166}.total-n{color:#58a6ff}.pct-n{color:#d2a8ff}
+
+/* Filters */
+.filters{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
+.filter-btn{background:#21262d;border:1px solid #30363d;border-radius:20px;padding:6px 16px;font-size:12px;cursor:pointer;color:#8b949e;transition:all 0.15s}
+.filter-btn:hover,.filter-btn.active{background:#58a6ff20;border-color:#58a6ff80;color:#58a6ff}
+.filter-btn.f-done.active{background:#3fb95020;border-color:#3fb95080;color:#3fb950}
+.filter-btn.f-pending.active{background:#f7816620;border-color:#f7816680;color:#f78166}
+
+/* Search */
+.search-wrap{margin-bottom:20px}
+.search-wrap input{width:100%;background:#161b22;border:1px solid #30363d;border-radius:10px;padding:10px 16px;color:#e6edf3;font-size:13px;outline:none}
+.search-wrap input:focus{border-color:#58a6ff60}
+.search-wrap input::placeholder{color:#484f58}
+
+/* Phase header */
+.phase-header{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#8b949e;padding:8px 0;margin:20px 0 8px;border-bottom:1px solid #21262d;display:flex;align-items:center;justify-content:space-between}
+.phase-count{font-size:11px;color:#484f58}
+
+/* Task row */
+.task-row{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-radius:10px;margin-bottom:4px;transition:background 0.1s;border:1px solid transparent}
+.task-row:hover{background:#161b2280;border-color:#30363d}
+.task-row.done .task-num{color:#3fb950}.task-row.pending .task-num{color:#f78166}
+.task-icon{font-size:15px;flex-shrink:0;margin-top:1px}
+.task-body{flex:1;min-width:0}
+.task-title{font-size:13px;font-weight:600;color:#e6edf3;line-height:1.4}
+.task-row.done .task-title{color:#8b949e;text-decoration:line-through;text-decoration-color:#484f58}
+.task-meta{font-size:11px;color:#484f58;margin-top:3px}
+.task-num{font-size:11px;font-weight:700;flex-shrink:0;min-width:52px;text-align:right}
+.status-chip{font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;flex-shrink:0;margin-top:2px}
+.chip-done{background:#3fb95015;border:1px solid #3fb95040;color:#3fb950}
+.chip-pending{background:#f7816615;border:1px solid #f7816640;color:#f78166}
+.chip-partial{background:#ffa65715;border:1px solid #ffa65740;color:#ffa657}
+
+.hidden{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <div style="font-size:11px;color:#8b949e;text-transform:uppercase;letter-spacing:2px;margin-bottom:4px">AI Marketing Platform OS v4.0</div>
+    <h1><span>Task</span> Status Report — April 16, 2026</h1>
+  </div>
+  <div style="display:flex;gap:8px">
+    <div class="badge">✅ Done = Implemented & Verified</div>
+    <div class="badge">🔴 Pending = Not Yet Built</div>
+  </div>
+</header>
+<main>
+
+<div class="stats">
+  <div class="stat"><div class="n total-n" id="cnt-total">0</div><div class="l">Total Tasks</div></div>
+  <div class="stat"><div class="n done-n" id="cnt-done">0</div><div class="l">Done</div></div>
+  <div class="stat"><div class="n pend-n" id="cnt-pending">0</div><div class="l">Pending</div></div>
+  <div class="stat"><div class="n pct-n" id="cnt-pct">0%</div><div class="l">Complete</div></div>
+</div>
+
+<div class="search-wrap">
+  <input type="text" id="search" placeholder="🔍  Search tasks..." oninput="filterTasks()"/>
+</div>
+
+<div class="filters">
+  <button class="filter-btn active" data-filter="all" onclick="setFilter(this,'all')">All Tasks</button>
+  <button class="filter-btn f-done" data-filter="done" onclick="setFilter(this,'done')">✅ Done Only</button>
+  <button class="filter-btn f-pending" data-filter="pending" onclick="setFilter(this,'pending')">🔴 Pending Only</button>
+</div>
+
+<div id="task-list"></div>
+
+</main>
+
+<script>
+const TASKS = [
+  // PHASE 1
+  {phase:'Phase 1 — Database & Multi-Tenancy Foundation',id:'T-01',title:'Create companies table (multi-tenant root)',status:'done',file:'Models.cs'},
+  {phase:'Phase 1 — Database & Multi-Tenancy Foundation',id:'T-02',title:'Add company_id FK to users table',status:'done',file:'Models.cs'},
+  {phase:'Phase 1 — Database & Multi-Tenancy Foundation',id:'T-03',title:'Add company_id to all tenant-scoped tables (campaigns, brand_guidelines, cmo_queue, roles)',status:'done',file:'Models.cs'},
+  {phase:'Phase 1 — Database & Multi-Tenancy Foundation',id:'T-04',title:'Create company_ad_accounts table (per-company FB/TikTok/Google credentials)',status:'done',file:'Models.cs'},
+  {phase:'Phase 1 — Database & Multi-Tenancy Foundation',id:'T-05',title:'Create company_settings table (timezone, currency, budget limits)',status:'done',file:'Models.cs'},
+  {phase:'Phase 1 — Database & Multi-Tenancy Foundation',id:'T-06',title:'Update AppDbContext for multi-tenancy (global query filters, indexes)',status:'done',file:'AppDbContext.cs'},
+  {phase:'Phase 1 — Database & Multi-Tenancy Foundation',id:'T-07',title:'DB migration — all 29 tables created via EnsureCreated + ALTER TABLE scripts',status:'done',file:'PostgreSQL'},
+  {phase:'Phase 1 — Database & Multi-Tenancy Foundation',id:'T-08',title:'Move PPP queue from JSON file to ppp_queue DB table',status:'done',file:'Models.cs / Program.cs'},
+
+  // PHASE 2
+  {phase:'Phase 2 — Super Admin Role & Authentication',id:'T-09',title:'Create Super Admin role + seed (company_id = null, all screens)',status:'done',file:'Program.cs'},
+  {phase:'Phase 2 — Super Admin Role & Authentication',id:'T-10',title:'Update JWT token to include company_id, company_slug, is_super_admin claims',status:'done',file:'Program.cs'},
+  {phase:'Phase 2 — Super Admin Role & Authentication',id:'T-11',title:'Create tenant resolution middleware (GetCompanyId / GetRequiredCompanyId)',status:'done',file:'Program.cs'},
+  {phase:'Phase 2 — Super Admin Role & Authentication',id:'T-12',title:'Create Super Admin API endpoints (/api/super-admin/companies, /dashboard, /audit-log)',status:'done',file:'Program.cs'},
+  {phase:'Phase 2 — Super Admin Role & Authentication',id:'T-13',title:'Add Super Admin authorization guard (RequireSuperAdmin policy)',status:'done',file:'Program.cs'},
+  {phase:'Phase 2 — Super Admin Role & Authentication',id:'T-14',title:'Update /api/auth/register for company context',status:'done',file:'Program.cs'},
+  {phase:'Phase 2 — Super Admin Role & Authentication',id:'T-15',title:'Update /api/auth/login — return company object + Super Admin companies list',status:'done',file:'Program.cs'},
+
+  // PHASE 3
+  {phase:'Phase 3 — Tenant-Scoped Data Access',id:'T-16',title:'Add company filtering to all API endpoints (campaigns, guidelines, queues, RBAC)',status:'done',file:'Program.cs'},
+  {phase:'Phase 3 — Tenant-Scoped Data Access',id:'T-17',title:'Tenant-scoped asset storage (/Assets/{company_id}/ folder structure)',status:'done',file:'Program.cs'},
+  {phase:'Phase 3 — Tenant-Scoped Data Access',id:'T-18',title:'Company-specific ad credentials (load from company_ad_accounts at runtime)',status:'done',file:'Services/'},
+  {phase:'Phase 3 — Tenant-Scoped Data Access',id:'T-19',title:'RBAC endpoints scoped to company (roles, users, permissions)',status:'done',file:'Program.cs'},
+  {phase:'Phase 3 — Tenant-Scoped Data Access',id:'T-20',title:'Multi-tenant seed endpoint (Demo Company + all 5 roles + screen permissions)',status:'done',file:'Program.cs'},
+
+  // PHASE 4
+  {phase:'Phase 4 — Role Renaming & Restructuring',id:'T-21',title:'Rename PPC → PPP (Planner/Publisher/Performer) across backend + frontend',status:'done',file:'Program.cs / main.js'},
+  {phase:'Phase 4 — Role Renaming & Restructuring',id:'T-22',title:'Rename Business Admin → CMO across all references',status:'done',file:'Program.cs / main.js'},
+  {phase:'Phase 4 — Role Renaming & Restructuring',id:'T-23',title:'Define screen permission sets per role (Super Admin / Admin / CMO / PPP / Expert)',status:'done',file:'Program.cs'},
+
+  // PHASE 5
+  {phase:'Phase 5 — Enhanced Campaign Workflow',id:'T-24',title:'Create campaign_objectives lookup table with platform mapping (jsonb)',status:'done',file:'Models.cs'},
+  {phase:'Phase 5 — Enhanced Campaign Workflow',id:'T-25',title:'Create ad_sets table (budget, bid strategy, targeting, placements jsonb)',status:'done',file:'Models.cs'},
+  {phase:'Phase 5 — Enhanced Campaign Workflow',id:'T-26',title:'Create ads table with platform_ad_ids jsonb column',status:'done',file:'Models.cs'},
+  {phase:'Phase 5 — Enhanced Campaign Workflow',id:'T-27',title:'Create ad_creatives table with platform_creative_ids jsonb',status:'done',file:'Models.cs'},
+  {phase:'Phase 5 — Enhanced Campaign Workflow',id:'T-28',title:'Enhance campaigns table (platform_campaign_ids jsonb + full lifecycle fields)',status:'done',file:'Models.cs'},
+  {phase:'Phase 5 — Enhanced Campaign Workflow',id:'T-29',title:'Create campaign_workflow_steps table (step state machine)',status:'done',file:'Models.cs'},
+  {phase:'Phase 5 — Enhanced Campaign Workflow',id:'T-30',title:'Campaign CRUD API (create, list, get, approve, reject, deploy, pause)',status:'done',file:'Program.cs'},
+  {phase:'Phase 5 — Enhanced Campaign Workflow',id:'T-31',title:'Ad Set CRUD API endpoints',status:'done',file:'Program.cs'},
+  {phase:'Phase 5 — Enhanced Campaign Workflow',id:'T-32',title:'Ad CRUD API endpoints (create, approve, reject per ad)',status:'done',file:'Program.cs'},
+
+  // PHASE 6
+  {phase:'Phase 6 — Ad Platform Integrations',id:'T-33',title:'YouTube Ads Service (CreateCampaign, CreateAdGroup, UploadVideo)',status:'pending',file:'Services/YouTubeAdsService.cs'},
+  {phase:'Phase 6 — Ad Platform Integrations',id:'T-34',title:'Google Ads Service (Search, Display, Shopping, Performance Max)',status:'pending',file:'Services/GoogleAdsService.cs'},
+  {phase:'Phase 6 — Ad Platform Integrations',id:'T-35',title:'Deployment Orchestrator — multi-platform parallel deploy',status:'done',file:'Services/DeploymentOrchestrator.cs'},
+  {phase:'Phase 6 — Ad Platform Integrations',id:'T-36',title:'Create deployment_logs table (one row per deploy step)',status:'done',file:'Models.cs'},
+  {phase:'Phase 6 — Ad Platform Integrations',id:'T-37',title:'POST /api/deploy/facebook — deploy ad + save all entities to DB',status:'done',file:'Program.cs'},
+  {phase:'Phase 6 — Ad Platform Integrations',id:'T-37b',title:'POST /api/facebook/sync — import all 12 FB campaigns + lifetime metrics',status:'done',file:'Program.cs'},
+  {phase:'Phase 6 — Ad Platform Integrations',id:'T-37c',title:'TikTok ad group deploy endpoint (POST /api/deploy/tiktok-adgroup)',status:'done',file:'Program.cs'},
+
+  // PHASE 7
+  {phase:'Phase 7 — Super Admin Frontend UI',id:'T-38',title:'Super Admin login detection + company selection screen',status:'done',file:'main.js'},
+  {phase:'Phase 7 — Super Admin Frontend UI',id:'T-39',title:'Super Admin global dashboard screen (cross-company metrics)',status:'done',file:'main.js'},
+  {phase:'Phase 7 — Super Admin Frontend UI',id:'T-40',title:'Company Management screen (create, edit, suspend, enter company)',status:'done',file:'main.js'},
+  {phase:'Phase 7 — Super Admin Frontend UI',id:'T-41',title:'Company selector in header (context switcher for Super Admin)',status:'done',file:'main.js'},
+  {phase:'Phase 7 — Super Admin Frontend UI',id:'T-42',title:'Audit Log screen (filterable system-wide activity table)',status:'pending',file:'main.js'},
+
+  // PHASE 8
+  {phase:'Phase 8 — Multi-Tenant Frontend Awareness',id:'T-43',title:'Frontend state for multi-tenancy (company object, isSuperAdmin, viewingCompanyId)',status:'done',file:'main.js'},
+  {phase:'Phase 8 — Multi-Tenant Frontend Awareness',id:'T-44',title:'Sidebar company branding (logo, name, role badge)',status:'done',file:'main.js'},
+  {phase:'Phase 8 — Multi-Tenant Frontend Awareness',id:'T-45',title:'User Management screen — company-scoped (Admin sees own company only)',status:'done',file:'main.js'},
+  {phase:'Phase 8 — Multi-Tenant Frontend Awareness',id:'T-46',title:'Role Management screen — company-scoped permissions matrix',status:'done',file:'main.js'},
+  {phase:'Phase 8 — Multi-Tenant Frontend Awareness',id:'T-46b',title:'User-Level Permission Overrides (UserScreen table + per-user matrix UI)',status:'pending',file:'Models.cs / main.js'},
+  {phase:'Phase 8 — Multi-Tenant Frontend Awareness',id:'T-47',title:'Ad Account Management screen (connect FB/TikTok/Google accounts, OAuth)',status:'pending',file:'main.js'},
+
+  // PHASE 9
+  {phase:'Phase 9 — Campaign Builder UI',id:'T-48',title:'Campaign Builder Wizard (6-step progress bar with auto-save draft)',status:'pending',file:'main.js'},
+  {phase:'Phase 9 — Campaign Builder UI',id:'T-49',title:'Redesign Objective screen (Awareness / Consideration / Conversion categories)',status:'done',file:'main.js'},
+  {phase:'Phase 9 — Campaign Builder UI',id:'T-50',title:'Enhanced Targeting screen (location, interests, custom audiences, lookalike)',status:'partial',file:'main.js'},
+  {phase:'Phase 9 — Campaign Builder UI',id:'T-51',title:'Strategy Hub 3-phase AI flow (Gemini — Level 1 + Level 2 questions)',status:'done',file:'main.js'},
+  {phase:'Phase 9 — Campaign Builder UI',id:'T-52',title:'Ad Set Configuration screen (budget, bid strategy, dayparting, placements)',status:'pending',file:'main.js'},
+  {phase:'Phase 9 — Campaign Builder UI',id:'T-53',title:'Enhanced Creative Studio (upload, generate, variations, text, ad preview)',status:'partial',file:'main.js'},
+  {phase:'Phase 9 — Campaign Builder UI',id:'T-54',title:'Campaign Review & Submit screen (full summary + submit for CMO approval)',status:'pending',file:'main.js'},
+
+  // PHASE 10
+  {phase:'Phase 10 — Approval Workflow',id:'T-55',title:'Redesign CMO Approval screen (campaigns tab + assets tab + sticky dispatch button)',status:'done',file:'main.js / Program.cs'},
+  {phase:'Phase 10 — Approval Workflow',id:'T-56',title:'Approval comments & feedback system (approval_comments table + API)',status:'done',file:'Models.cs / Program.cs'},
+  {phase:'Phase 10 — Approval Workflow',id:'T-57',title:'Notification system (notifications table, bell icon, unread count)',status:'partial',file:'Models.cs / main.js'},
+
+  // PHASE 11
+  {phase:'Phase 11 — Monitoring & Analytics',id:'T-58',title:'Create ad_metrics table (daily metrics per campaign per platform)',status:'done',file:'Models.cs'},
+  {phase:'Phase 11 — Monitoring & Analytics',id:'T-59',title:'MetricsFetchService — real FB Graph API metrics, runs every 4 hours',status:'done',file:'Services/MetricsFetchService.cs'},
+  {phase:'Phase 11 — Monitoring & Analytics',id:'T-60',title:'Analytics API endpoints (overview, platforms, top-performers, trends)',status:'done',file:'Program.cs'},
+  {phase:'Phase 11 — Monitoring & Analytics',id:'T-61',title:'Dashboard screen with real analytics from ad_metrics_summary',status:'done',file:'main.js'},
+  {phase:'Phase 11 — Monitoring & Analytics',id:'T-62',title:'Ad Performance screen with real data, filters, sortable columns, CSV export',status:'partial',file:'main.js'},
+  {phase:'Phase 11 — Monitoring & Analytics',id:'T-63',title:'Cross-Platform Analytics screen (side-by-side platform comparison)',status:'partial',file:'main.js'},
+
+  // PHASE 12
+  {phase:'Phase 12 — Google Ads & YouTube Features',id:'T-64',title:'Google Ads deploy module (Search, Display, Shopping, Performance Max)',status:'pending',file:'googleAdsDeploy.js'},
+  {phase:'Phase 12 — Google Ads & YouTube Features',id:'T-65',title:'YouTube Ads deploy module (In-Stream, Discovery, Shorts, Bumper)',status:'pending',file:'youtubeAdsDeploy.js'},
+  {phase:'Phase 12 — Google Ads & YouTube Features',id:'T-66',title:'Google/YouTube config in Platform Selection screen',status:'pending',file:'main.js'},
+
+  // PHASE 13
+  {phase:'Phase 13 — Company Onboarding & A/B Testing',id:'T-67',title:'Company onboarding API (POST /api/onboard/company — create company + admin in one step)',status:'pending',file:'Program.cs'},
+  {phase:'Phase 13 — Company Onboarding & A/B Testing',id:'T-68',title:'A/B test management (ab_tests table + results API)',status:'done',file:'Models.cs / Program.cs'},
+  {phase:'Phase 13 — Company Onboarding & A/B Testing',id:'T-69',title:'Budget Overview screen — real data from ppp_queue + ad_metrics',status:'partial',file:'main.js'},
+  {phase:'Phase 13 — Company Onboarding & A/B Testing',id:'T-70',title:'Campaign Reports screen with per-campaign deep dive',status:'partial',file:'main.js'},
+
+  // PHASE 14 - Future
+  {phase:'Phase 14 — Future / Next Sprint',id:'T-71',title:'Pagination for GET /api/campaigns (large datasets)',status:'pending',file:'Program.cs'},
+  {phase:'Phase 14 — Future / Next Sprint',id:'T-72',title:'TikTok real metric integration (same pattern as Facebook MetricsFetchService)',status:'pending',file:'Services/'},
+  {phase:'Phase 14 — Future / Next Sprint',id:'T-73',title:'Google Ads real metric integration',status:'pending',file:'Services/'},
+  {phase:'Phase 14 — Future / Next Sprint',id:'T-74',title:'Campaign wizard auto-submit for CMO review on completion',status:'pending',file:'main.js'},
+  {phase:'Phase 14 — Future / Next Sprint',id:'T-75',title:'Export reports to CSV / PDF',status:'pending',file:'main.js / Program.cs'},
+  {phase:'Phase 14 — Future / Next Sprint',id:'T-76',title:'AI budget reallocation (shift spend to top-performing platforms automatically)',status:'pending',file:'Services/'},
+];
+
+let currentFilter = 'all';
+
+function renderTasks() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const list = document.getElementById('task-list');
+  list.innerHTML = '';
+
+  let total=0, done=0, pending=0;
+  // Count all (ignoring partial in done)
+  TASKS.forEach(t => {
+    total++;
+    if(t.status==='done') done++;
+    else if(t.status==='pending') pending++;
+  });
+  const partial = total - done - pending;
+  document.getElementById('cnt-total').textContent = total;
+  document.getElementById('cnt-done').textContent = done;
+  document.getElementById('cnt-pending').textContent = pending + ' + ' + partial + ' partial';
+  document.getElementById('cnt-pct').textContent = Math.round((done/total)*100) + '%';
+
+  // Group by phase
+  const phases = {};
+  TASKS.forEach(t => {
+    if(!phases[t.phase]) phases[t.phase]=[];
+    const matchFilter = currentFilter==='all' || currentFilter===t.status || (currentFilter==='pending' && t.status==='partial');
+    const matchSearch = !search || t.title.toLowerCase().includes(search) || t.id.toLowerCase().includes(search) || t.file.toLowerCase().includes(search);
+    if(matchFilter && matchSearch) phases[t.phase].push(t);
+  });
+
+  Object.entries(phases).forEach(([phase, tasks]) => {
+    if(tasks.length===0) return;
+    const phDone = tasks.filter(t=>t.status==='done').length;
+    const ph = document.createElement('div');
+    ph.className='phase-header';
+    ph.innerHTML = '<span>' + phase + '</span><span class="phase-count">' + phDone + ' / ' + tasks.length + ' done</span>';
+    list.appendChild(ph);
+
+    tasks.forEach(t => {
+      const icon = t.status==='done' ? '✅' : t.status==='partial' ? '🟡' : '🔴';
+      const chipCls = t.status==='done' ? 'chip-done' : t.status==='partial' ? 'chip-partial' : 'chip-pending';
+      const chipTxt = t.status==='done' ? 'DONE' : t.status==='partial' ? 'PARTIAL' : 'PENDING';
+      const row = document.createElement('div');
+      row.className = 'task-row ' + (t.status==='done' ? 'done' : 'pending');
+      row.innerHTML = '<span class="task-icon">' + icon + '</span>'
+        + '<div class="task-body"><div class="task-title">' + t.title + '</div><div class="task-meta">' + t.file + '</div></div>'
+        + '<span class="status-chip ' + chipCls + '">' + chipTxt + '</span>'
+        + '<span class="task-num">' + t.id + '</span>';
+      list.appendChild(row);
+    });
+  });
+}
+
+function setFilter(btn, filter) {
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFilter = filter;
+  renderTasks();
+}
+
+function filterTasks() { renderTasks(); }
+
+renderTasks();
+</script>
+</body>
+</html>

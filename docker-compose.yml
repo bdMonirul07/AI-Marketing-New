@@ -1,0 +1,52 @@
+# Task 90: Docker Compose - Full Stack
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: MarketingAI
+      POSTGRES_USER: Monirul007
+      POSTGRES_PASSWORD: Orion123@
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U Monirul007 -d MarketingAI"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5243:5243"
+    environment:
+      ConnectionStrings__DefaultConnection: "Host=db;Database=MarketingAI;Username=Monirul007;Password=Orion123@"
+      Jwt__Key: "A-Very-Secret-Key-For-The-Marketing-AI-App-2024!!"
+      Jwt__Issuer: "MarketingAIBackend"
+      Jwt__Audience: "MarketingAIFrontend"
+      Gemini__ApiKey: "${GEMINI_API_KEY}"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - assets:/app/Assets
+      - library:/app/Assets Library
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  assets:
+  library:

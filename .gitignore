@@ -2,14 +2,42 @@
 frontend/node_modules/
 frontend/dist/
 frontend/.vite/
+frontend/.env
+frontend/.env.local
 
 # Backend
 backend/bin/
 backend/obj/
 backend/brand_guidelines.json
+backend/campaigns.json
+backend/cmo_queue.json
+backend/ppc_queue.json
+backend/ppp_queue.json
+backend/Assets/
+backend/Assets Library/
+
+# Tests
+backend.tests/bin/
+backend.tests/obj/
+TestResults/
+
+# Environment & Secrets
+*.env
+.env.local
+.env.production
 
 # IDEs
 .vscode/
 .idea/
 *.swp
 *.log
+.vs/
+*.user
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+/.claude

@@ -1,0 +1,181 @@
+.cmo-chatbot {
+    position: fixed;
+    left: calc(280px + 1.5rem);
+    bottom: 1.5rem;
+    z-index: 30;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.cmo-chatbot.page {
+    position: static;
+    left: auto;
+    bottom: auto;
+    width: 100%;
+    align-items: stretch;
+}
+
+.cmo-chat-launcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: 999px;
+    border: none;
+    background: var(--color-accent);
+    color: #fff;
+    font-weight: 700;
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+}
+
+.cmo-chat-launcher-icon {
+    font-size: 1rem;
+}
+
+.cmo-chat-panel {
+    width: 320px;
+    max-height: 520px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 18px;
+    box-shadow: var(--shadow-md);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.cmo-chat-panel.full {
+    width: 100%;
+    max-height: none;
+    min-height: 70vh;
+}
+
+.cmo-chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1rem 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.cmo-chat-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.cmo-chat-expand {
+    border: none;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.cmo-chat-title {
+    font-weight: 800;
+    color: var(--color-primary);
+}
+
+.cmo-chat-sub {
+    font-size: 0.75rem;
+    color: var(--color-subtext);
+}
+
+.cmo-chat-close {
+    border: none;
+    background: transparent;
+    font-size: 1rem;
+    cursor: pointer;
+    color: var(--color-subtext);
+}
+
+.cmo-chat-messages {
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    overflow-y: auto;
+}
+
+.cmo-chat-panel.full .cmo-chat-messages {
+    min-height: 300px;
+    flex: 1;
+}
+
+.cmo-chat-bubble {
+    padding: 0.6rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.cmo-chat-bubble.assistant {
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--color-text);
+    align-self: flex-start;
+}
+
+.cmo-chat-bubble.user {
+    background: rgba(178, 4, 14, 0.12);
+    color: var(--color-primary);
+    align-self: flex-end;
+}
+
+.cmo-chat-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0 1rem 0.75rem;
+}
+
+.cmo-chat-chip {
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    border-radius: 999px;
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.cmo-chat-input {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem 1rem;
+    border-top: 1px solid var(--color-border);
+    background: rgba(0, 0, 0, 0.02);
+}
+
+.cmo-chat-input input {
+    flex: 1;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+@media (max-width: 1024px) {
+    .cmo-chatbot {
+        left: 1.25rem;
+        bottom: 1.25rem;
+    }
+}
+
+@media (max-width: 720px) {
+    .cmo-chatbot {
+        left: 1rem;
+        right: 1rem;
+        align-items: stretch;
+    }
+
+    .cmo-chat-panel {
+        width: 100%;
+    }
+}
