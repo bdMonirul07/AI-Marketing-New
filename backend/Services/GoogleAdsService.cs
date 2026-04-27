@@ -16,7 +16,7 @@ namespace Backend.Services
             Console.WriteLine($"[GOOGLE ADS] Creating campaign: {campaignName} (type: {campaignType})");
 
             // Google Ads API v17 endpoint
-            var url = $"https://googleads.googleapis.com/v17/customers/{customerId}/campaigns:mutate";
+            var url = $"https://googleads.googleapis.com/v19/customers/{customerId}/campaigns:mutate";
 
             var requestBody = new
             {
@@ -69,7 +69,7 @@ namespace Backend.Services
         {
             Console.WriteLine($"[GOOGLE ADS] Creating ad group: {adGroupName}");
 
-            var url = $"https://googleads.googleapis.com/v17/customers/{customerId}/adGroups:mutate";
+            var url = $"https://googleads.googleapis.com/v19/customers/{customerId}/adGroups:mutate";
 
             var requestBody = new
             {

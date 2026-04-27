@@ -542,9 +542,11 @@ namespace Backend.Services
                 foreach (var account in adAccounts)
                 {
                     if (!campaign.Platforms.Contains(account.Platform))
-                    {
                         continue;
-                    }
+
+                    // GoogleAdsSyncService owns google_ads — skip here to avoid double-handling.
+                    if (account.Platform == "google_ads")
+                        continue;
 
                     try
                     {
@@ -735,6 +737,7 @@ namespace Backend.Services
 
         private async Task ClearFacebookDataAsync(AppDbContext db, int companyId, CancellationToken ct)
         {
+            // ad_metrics and ad_metrics_summary are never deleted — they are historical records.
             var existingCampaigns = await db.Campaigns
                 .Where(c => c.CompanyId == companyId && c.Platforms.Contains("facebook"))
                 .Select(c => new { c.Id, c.PlatformCampaignIds })
@@ -745,12 +748,7 @@ namespace Backend.Services
                 .Select(c => c.Id)
                 .ToList();
 
-            if (existingCampaignIds.Count == 0)
-            {
-                db.AdMetrics.RemoveRange(db.AdMetrics.Where(m => m.CompanyId == companyId && m.Platform == "facebook"));
-                await db.SaveChangesAsync(ct);
-                return;
-            }
+            if (existingCampaignIds.Count == 0) return;
 
             var existingAdSetIds = await db.AdSets
                 .Where(a => existingCampaignIds.Contains(a.CampaignId))
@@ -762,7 +760,6 @@ namespace Backend.Services
                 .Select(a => a.Id)
                 .ToListAsync(ct);
 
-            db.AdMetrics.RemoveRange(db.AdMetrics.Where(m => m.CompanyId == companyId && m.Platform == "facebook"));
             db.ApprovalComments.RemoveRange(db.ApprovalComments.Where(a => existingCampaignIds.Contains(a.CampaignId)));
             db.AbTests.RemoveRange(db.AbTests.Where(a => existingCampaignIds.Contains(a.CampaignId)));
             db.AdCreatives.RemoveRange(db.AdCreatives.Where(a => existingAdIds.Contains(a.AdId)));
@@ -786,34 +783,35 @@ namespace Backend.Services
             Func<JsonElement, (int? CampaignId, int? AdSetId, int? AdId)> mapIds,
             CancellationToken ct)
         {
-            // Primary: hourly breakdown for last 7 days — gives real per-hour buckets.
+            // Primary: hourly breakdown for last 7 days — real per-hour buckets only.
             var hourlyUrl = $"https://graph.facebook.com/v19.0/{adAccountId}/insights" +
                 $"?level={level}&fields={fields}" +
                 $"&breakdowns=hourly_stats_aggregated_by_advertiser_time_zone" +
                 $"&date_preset=last_7d&limit=500&access_token={accessToken}";
 
-            var rows = await FetchGraphCollectionAsync(hourlyUrl, ct);
-            var usedHourly = rows.Count > 0;
+            var hourlyRows = await FetchGraphCollectionAsync(hourlyUrl, ct);
 
-            // Fallback: lifetime rollup (one row per ad). Used when the account has no
-            // recent activity — keeps the dashboard populated with historic totals.
-            if (!usedHourly)
-            {
-                var lifetimeUrl = $"https://graph.facebook.com/v19.0/{adAccountId}/insights" +
-                    $"?level={level}&fields={fields}&date_preset=maximum&limit=500&access_token={accessToken}";
-                rows = await FetchGraphCollectionAsync(lifetimeUrl, ct);
-            }
+            // date_preset=last_7d excludes the current day — fetch today separately so
+            // any ad that delivered today gets its real hourly rows.
+            var todayUrl = $"https://graph.facebook.com/v19.0/{adAccountId}/insights" +
+                $"?level={level}&fields={fields}" +
+                $"&breakdowns=hourly_stats_aggregated_by_advertiser_time_zone" +
+                $"&date_preset=today&limit=500&access_token={accessToken}";
 
-            if (rows.Count == 0)
+            var todayRows = await FetchGraphCollectionAsync(todayUrl, ct);
+            var allHourlyRows = hourlyRows.Concat(todayRows).ToList();
+
+            _logger.LogInformation("[FB SYNC] Fetched {Last7d} last_7d + {Today} today rows for {AdAccountId}",
+                hourlyRows.Count, todayRows.Count, adAccountId);
+
+            if (allHourlyRows.Count == 0)
             {
                 _logger.LogInformation("[FB SYNC] No {Level} insights returned for account {AdAccountId}", level, adAccountId);
                 return 0;
             }
 
-            _logger.LogInformation("[FB SYNC] Fetched {Count} insights rows for {AdAccountId} (hourly={Hourly})", rows.Count, adAccountId, usedHourly);
-
             // Preload existing FB rows in a wide window so we can upsert by (campaign, adset, ad, date).
-            // We keep every historical row; only matching-key rows get refreshed in place.
+            // Historical rows are never deleted; only matching-key rows are refreshed in place.
             var windowStart = DateTime.UtcNow.AddDays(-14);
             var existingMetrics = await db.AdMetrics
                 .Where(m => m.CompanyId == companyId && m.Platform == "facebook" && m.Date >= windowStart)
@@ -823,8 +821,9 @@ namespace Backend.Services
                 m => m);
 
             var count = 0;
-            var nowHour = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, DateTime.UtcNow.Hour, 0, 0, DateTimeKind.Utc);
-            foreach (var row in rows)
+
+            // Store only real hourly rows — no synthetic lifetime snapshots.
+            foreach (var row in allHourlyRows)
             {
                 var ids = mapIds(row);
                 if (!ids.CampaignId.HasValue)
@@ -832,9 +831,7 @@ namespace Backend.Services
                     continue;
                 }
 
-                // Hourly rows: timestamp from date_start + breakdown hour.
-                // Lifetime fallback rows: pinned to current hour so they surface in the dashboard window.
-                var metricDate = usedHourly ? ParseHourlyBucket(row) : nowHour;
+                var metricDate = ParseHourlyBucket(row);
                 if (metricDate == null)
                 {
                     continue;
@@ -854,7 +851,7 @@ namespace Backend.Services
                 // Engagement fields from the actions array
                 var likes = SumFilteredActions(row, "actions", "post_reaction");
                 var comments = SumFilteredActions(row, "actions", "comment");
-                var shares = SumFilteredActions(row, "actions", "post");
+                var shares = SumFilteredActions(row, "actions", "share");
                 var saves = SumFilteredActions(row, "actions", "onsite_conversion.post_save");
                 var avgWatchSec = AverageActionValue(row, "video_avg_time_watched_actions");
 
@@ -926,7 +923,11 @@ namespace Backend.Services
         }
 
         // Combine date_start (day) with the hourly_stats breakdown ("HH:MM:SS - HH:MM:SS")
-        // into a single UTC timestamp pinned to the start of the hour.
+        // into a UTC timestamp for that hour bucket.
+        // IMPORTANT: date_start is in the advertiser's local timezone. We must NOT apply
+        // any server-local timezone conversion — parse it as a pure calendar date so the
+        // stored value always matches what Facebook reported (e.g. "2026-04-26" + hour 8
+        // → 2026-04-26 08:00 UTC regardless of server TZ offset).
         private static DateTime? ParseHourlyBucket(JsonElement row)
         {
             var dateStart = GetString(row, "date_start");
@@ -935,23 +936,24 @@ namespace Backend.Services
                 return null;
             }
 
-            if (!DateTime.TryParse(dateStart, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal, out var day))
+            // Parse the calendar date without any timezone shift.
+            if (!DateOnly.TryParseExact(dateStart, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateOnly))
             {
                 return null;
             }
 
-            day = DateTime.SpecifyKind(day.Date, DateTimeKind.Utc);
+            var day = new DateTime(dateOnly.Year, dateOnly.Month, dateOnly.Day, 0, 0, 0, DateTimeKind.Utc);
 
             var hourRange = GetString(row, "hourly_stats_aggregated_by_advertiser_time_zone");
             if (string.IsNullOrWhiteSpace(hourRange))
             {
-                return day; // fall back to midnight if breakdown missing
+                return day;
             }
 
             // Format: "HH:MM:SS - HH:MM:SS"
             var separator = hourRange.IndexOf(" - ", StringComparison.Ordinal);
             var startPart = separator > 0 ? hourRange[..separator] : hourRange;
-            if (!int.TryParse(startPart.Split(':')[0], out var hour))
+            if (!int.TryParse(startPart.Split(':')[0], out var hour) || hour < 0 || hour > 23)
             {
                 return day;
             }

@@ -35,6 +35,9 @@ builder.Services.AddSingleton<MetricsSummaryService>();
 // Register MetricsFetchService as both singleton and hosted service so it can be injected
 builder.Services.AddSingleton<MetricsFetchService>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<MetricsFetchService>());
+// Register GoogleAdsSyncService as both singleton and hosted service
+builder.Services.AddSingleton<GoogleAdsSyncService>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<GoogleAdsSyncService>());
 
 // JWT Configuration
 var jwtKey = builder.Configuration["Jwt:Key"] ?? "default_secret_key_at_least_32_chars_long!!";
@@ -257,23 +260,62 @@ using (var scope = app.Services.CreateScope())
 
     // ad_metrics_summary: latest-snapshot table, refreshed by MetricsSummaryService after each run
     db.Database.ExecuteSqlRaw(@"
-        -- New Facebook ID columns for stable UPSERT (append-only ad_metrics)
         ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS facebook_campaign_id VARCHAR(100);
         ALTER TABLE ad_sets   ADD COLUMN IF NOT EXISTS facebook_ad_set_id  VARCHAR(100);
         ALTER TABLE ads       ADD COLUMN IF NOT EXISTS facebook_ad_id      VARCHAR(100);
 
-        -- Backfill from existing JSONB platform ID fields
-        UPDATE campaigns SET facebook_campaign_id = platform_campaign_ids->>'facebook'
-            WHERE facebook_campaign_id IS NULL AND platform_campaign_ids->>'facebook' IS NOT NULL;
-        UPDATE ad_sets SET facebook_ad_set_id = platform_adset_ids->>'facebook'
-            WHERE facebook_ad_set_id IS NULL AND platform_adset_ids->>'facebook' IS NOT NULL;
-        UPDATE ads SET facebook_ad_id = platform_ad_ids->>'facebook'
-            WHERE facebook_ad_id IS NULL AND platform_ad_ids->>'facebook' IS NOT NULL;
+        DO $$ BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_indexes WHERE indexname = 'idx_campaigns_facebook_id'
+            ) THEN
+                -- Backfill only unique JSONB values (keep lowest id per facebook id)
+                UPDATE campaigns SET facebook_campaign_id = platform_campaign_ids->>'facebook'
+                    WHERE facebook_campaign_id IS NULL
+                      AND platform_campaign_ids->>'facebook' IS NOT NULL
+                      AND id = (
+                          SELECT MIN(id) FROM campaigns c2
+                          WHERE c2.platform_campaign_ids->>'facebook' = campaigns.platform_campaign_ids->>'facebook'
+                      );
+                UPDATE ad_sets SET facebook_ad_set_id = platform_adset_ids->>'facebook'
+                    WHERE facebook_ad_set_id IS NULL
+                      AND platform_adset_ids->>'facebook' IS NOT NULL
+                      AND id = (
+                          SELECT MIN(id) FROM ad_sets s2
+                          WHERE s2.platform_adset_ids->>'facebook' = ad_sets.platform_adset_ids->>'facebook'
+                      );
+                UPDATE ads SET facebook_ad_id = platform_ad_ids->>'facebook'
+                    WHERE facebook_ad_id IS NULL
+                      AND platform_ad_ids->>'facebook' IS NOT NULL
+                      AND id = (
+                          SELECT MIN(id) FROM ads a2
+                          WHERE a2.platform_ad_ids->>'facebook' = ads.platform_ad_ids->>'facebook'
+                      );
+                CREATE UNIQUE INDEX idx_campaigns_facebook_id ON campaigns(facebook_campaign_id) WHERE facebook_campaign_id IS NOT NULL;
+                CREATE UNIQUE INDEX idx_adsets_facebook_id    ON ad_sets(facebook_ad_set_id)    WHERE facebook_ad_set_id IS NOT NULL;
+                CREATE UNIQUE INDEX idx_ads_facebook_id       ON ads(facebook_ad_id)            WHERE facebook_ad_id IS NOT NULL;
+            END IF;
+        END $$;
+    ");
+    db.SaveChanges();
 
-        -- Unique partial indexes (only on rows that have a Facebook ID)
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_campaigns_facebook_id ON campaigns(facebook_campaign_id) WHERE facebook_campaign_id IS NOT NULL;
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_adsets_facebook_id    ON ad_sets(facebook_ad_set_id)    WHERE facebook_ad_set_id IS NOT NULL;
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_ads_facebook_id       ON ads(facebook_ad_id)            WHERE facebook_ad_id IS NOT NULL;
+    // Google Ads ID columns + unique indexes (same pattern as Facebook)
+    db.Database.ExecuteSqlRaw(@"
+        ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS google_campaign_id VARCHAR(100);
+        ALTER TABLE ad_sets   ADD COLUMN IF NOT EXISTS google_ad_group_id VARCHAR(100);
+        ALTER TABLE ads       ADD COLUMN IF NOT EXISTS google_ad_id        VARCHAR(100);
+
+        -- Ensure platform_service_settings row 2 exists (Google Ads service)
+        INSERT INTO platform_service_settings (id, interval_hours, is_enabled)
+        VALUES (2, 4, true)
+        ON CONFLICT (id) DO NOTHING;
+
+        DO $$ BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'idx_campaigns_google_id') THEN
+                CREATE UNIQUE INDEX idx_campaigns_google_id ON campaigns(google_campaign_id) WHERE google_campaign_id IS NOT NULL;
+                CREATE UNIQUE INDEX idx_adsets_google_id    ON ad_sets(google_ad_group_id)   WHERE google_ad_group_id IS NOT NULL;
+                CREATE UNIQUE INDEX idx_ads_google_id       ON ads(google_ad_id)             WHERE google_ad_id IS NOT NULL;
+            END IF;
+        END $$;
     ");
     db.SaveChanges();
 
@@ -307,6 +349,8 @@ using (var scope = app.Services.CreateScope())
         CREATE INDEX IF NOT EXISTS idx_metrics_summary_campaign ON ad_metrics_summary(campaign_id, date);
         CREATE INDEX IF NOT EXISTS idx_metrics_summary_date     ON ad_metrics_summary(date);
         CREATE INDEX IF NOT EXISTS idx_metrics_summary_fetched  ON ad_metrics_summary(fetched_at);
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_metrics_summary_upsert
+            ON ad_metrics_summary(campaign_id, COALESCE(ad_set_id, -1), COALESCE(ad_id, -1), platform);
     ");
     db.SaveChanges();
 
@@ -339,6 +383,43 @@ using (var scope = app.Services.CreateScope())
         INSERT INTO platform_service_settings (id, interval_hours, is_enabled)
         VALUES (1, 4, true)
         ON CONFLICT (id) DO NOTHING;
+    ");
+    db.SaveChanges();
+
+    // ad_metrics: ad_set_id and ad_id should be nullable (campaign-level or platform-level
+    // metrics don't always have ad-set/ad granularity — e.g. simulated rows for TikTok/YouTube).
+    // The C# model already declares them as int?, so align the DB constraint to match.
+    // Also rebuild uq_metrics_daily with COALESCE so NULL values don't produce false duplicates.
+    db.Database.ExecuteSqlRaw(@"
+        DO $$
+        BEGIN
+            -- Drop NOT NULL if still present
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'ad_metrics'
+                  AND column_name = 'ad_set_id'
+                  AND is_nullable = 'NO'
+            ) THEN
+                ALTER TABLE ad_metrics ALTER COLUMN ad_set_id DROP NOT NULL;
+            END IF;
+
+            IF EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'ad_metrics'
+                  AND column_name = 'ad_id'
+                  AND is_nullable = 'NO'
+            ) THEN
+                ALTER TABLE ad_metrics ALTER COLUMN ad_id DROP NOT NULL;
+            END IF;
+
+            -- Rebuild unique index using COALESCE so NULL is treated as 0 for dedup purposes
+            IF EXISTS (SELECT 1 FROM pg_indexes WHERE indexname = 'uq_metrics_daily') THEN
+                DROP INDEX uq_metrics_daily;
+            END IF;
+        END $$;
+
+        CREATE UNIQUE INDEX IF NOT EXISTS uq_metrics_daily
+            ON ad_metrics(campaign_id, COALESCE(ad_set_id, 0), COALESCE(ad_id, 0), platform, date);
     ");
     db.SaveChanges();
 
@@ -770,6 +851,44 @@ app.MapPost("/api/super-admin/platform-service/interval", (HttpContext ctx, Metr
         message = "Platform Service schedule interval updated.",
         status = svc.SetIntervalHours(req.IntervalHours)
     });
+}).RequireAuthorization();
+
+// ── Google Ads Service endpoints ─────────────────────────────────────────────
+app.MapGet("/api/super-admin/google-service", (HttpContext ctx, GoogleAdsSyncService svc) =>
+{
+    if (!ctx.IsSuperAdmin()) return Results.Forbid();
+    return Results.Ok(new
+    {
+        serviceName = "GoogleAdsSyncService",
+        displayName = "Google Ads Service",
+        status = svc.GetStatus()
+    });
+}).RequireAuthorization();
+
+app.MapPost("/api/super-admin/google-service/start", (HttpContext ctx, GoogleAdsSyncService svc) =>
+{
+    if (!ctx.IsSuperAdmin()) return Results.Forbid();
+    return Results.Ok(new { message = "Google Ads Service started.", status = svc.StartScheduledExecution() });
+}).RequireAuthorization();
+
+app.MapPost("/api/super-admin/google-service/stop", (HttpContext ctx, GoogleAdsSyncService svc) =>
+{
+    if (!ctx.IsSuperAdmin()) return Results.Forbid();
+    return Results.Ok(new { message = "Google Ads Service stopped.", status = svc.StopScheduledExecution() });
+}).RequireAuthorization();
+
+app.MapPost("/api/super-admin/google-service/update", (HttpContext ctx, GoogleAdsSyncService svc) =>
+{
+    if (!ctx.IsSuperAdmin()) return Results.Forbid();
+    return Results.Ok(new { message = "Google Ads Service update requested.", status = svc.RequestImmediateRun() });
+}).RequireAuthorization();
+
+app.MapPost("/api/super-admin/google-service/interval", (HttpContext ctx, GoogleAdsSyncService svc, PlatformServiceIntervalRequest req) =>
+{
+    if (!ctx.IsSuperAdmin()) return Results.Forbid();
+    if (req.IntervalHours < 0.25 || req.IntervalHours > 168)
+        return Results.BadRequest(new { error = "Schedule interval must be between 0.25 and 168 hours." });
+    return Results.Ok(new { message = "Google Ads Service interval updated.", status = svc.SetIntervalHours(req.IntervalHours) });
 }).RequireAuthorization();
 
 app.MapGet("/api/super-admin/audit-log", async (AppDbContext db, HttpContext ctx, int? companyId, int limit = 50, int offset = 0) =>
@@ -1814,7 +1933,7 @@ app.MapPost("/api/ppp/queue", async (AppDbContext db, HttpContext ctx, HttpReque
                 AssetType    = type,
                 Title        = title,
                 Platform     = platform,
-                Status       = "pending",
+                Status       = "received",
                 QueueIndex   = queueIdx
             });
         }
@@ -1879,7 +1998,7 @@ app.MapPost("/api/ppc/queue", async (AppDbContext db, HttpContext ctx, HttpReque
                 AssetType     = type2,
                 Title         = title2,
                 Platform      = platform2,
-                Status        = "pending",
+                Status        = "received",
                 QueueIndex    = queueIdx2
             });
         }
@@ -2602,6 +2721,67 @@ app.MapGet("/api/analytics/top-performers", async (AppDbContext db, HttpContext 
     return Results.Ok(data);
 });
 
+app.MapGet("/api/monitoring/overview", async (AppDbContext db, HttpContext ctx) =>
+{
+    var companyId = ctx.GetRequiredCompanyId();
+
+    var summary = db.AdMetricsSummary.Where(m => m.CompanyId == companyId
+        && (m.Platform != "facebook" || (m.AdSetId != null && m.AdId != null)));
+
+    var totalSpend = await summary.SumAsync(m => (decimal?)m.Spend) ?? 0m;
+    var totalImpressions = await summary.SumAsync(m => (long?)m.Impressions) ?? 0L;
+    var totalClicks = await summary.SumAsync(m => (long?)m.Clicks) ?? 0L;
+    var totalConversions = await summary.SumAsync(m => (long?)m.Conversions) ?? 0L;
+    var totalConversionValue = await summary.SumAsync(m => (decimal?)m.ConversionValue) ?? 0m;
+
+    var activeAds = await db.Ads.CountAsync(a => a.CompanyId == companyId && a.Status == "active");
+    var killedAds = await db.Ads.CountAsync(a => a.CompanyId == companyId && (a.Status == "paused" || a.Status == "archived" || a.Status == "rejected"));
+    var efficiency = totalImpressions > 0 ? Math.Round((decimal)totalClicks * 100m / totalImpressions, 2) : 0m;
+
+    var perCampaign = await summary.GroupBy(m => m.CampaignId)
+        .Select(g => new {
+            CampaignId = g.Key,
+            Spend = g.Sum(m => m.Spend),
+            Impressions = g.Sum(m => m.Impressions),
+            Clicks = g.Sum(m => m.Clicks),
+            Conversions = g.Sum(m => m.Conversions),
+            ConversionValue = g.Sum(m => m.ConversionValue)
+        }).ToListAsync();
+
+    var campaignIds = perCampaign.Select(p => p.CampaignId).ToList();
+    var campaigns = await db.Campaigns.Where(c => campaignIds.Contains(c.Id))
+        .Select(c => new { c.Id, c.Name, c.Status }).ToListAsync();
+
+    var matrix = perCampaign.Select(p => {
+        var c = campaigns.FirstOrDefault(x => x.Id == p.CampaignId);
+        var roas = p.Spend > 0 ? p.ConversionValue / p.Spend : 0m;
+        var roi = (int)Math.Min(100m, Math.Round(roas * 20m));
+        string status, action;
+        if (roi >= 80) { status = "Optimal"; action = "Scaling Up"; }
+        else if (roi >= 60) { status = "Stable"; action = "Monitoring"; }
+        else if (roi >= 40) { status = "Normal"; action = "Budget Realloc"; }
+        else { status = "Critical"; action = "Shutting Down"; }
+        return new {
+            CampaignId = p.CampaignId,
+            Name = c?.Name ?? $"Campaign #{p.CampaignId}",
+            Roi = roi,
+            Spend = p.Spend,
+            Action = action,
+            Status = status
+        };
+    }).OrderByDescending(x => x.Roi).Take(20).ToList();
+
+    return Results.Ok(new {
+        kpis = new {
+            activeAds,
+            killedAds,
+            totalSpend,
+            efficiency
+        },
+        matrix
+    });
+});
+
 // ══════════════════════════════════════════════════
 // A/B TESTS
 // ══════════════════════════════════════════════════
@@ -3212,12 +3392,19 @@ app.MapGet("/api/analytics/kpis", async (AppDbContext db, HttpContext ctx, strin
 {
     var companyId = ctx.GetRequiredCompanyId();
     var now = DateTime.UtcNow;
-    var currStart = now.AddHours(-1);
-    var prevStart = now.AddHours(-2);
+
+    // Anchor to the latest available data date so KPIs are never zero due to stale sync
+    var baseQ = db.AdMetrics.Where(m => m.CompanyId == companyId);
+    if (!string.IsNullOrEmpty(platform) && platform != "all")
+        baseQ = baseQ.Where(m => m.Platform == platform);
+    var maxDate = await baseQ.MaxAsync(m => (DateTime?)m.Date) ?? now;
+
+    var currStart = maxDate.AddHours(-1);
+    var prevStart = maxDate.AddHours(-2);
 
     async Task<object> Bucket(DateTime from, DateTime to)
     {
-        var q = db.AdMetrics.Where(m => m.CompanyId == companyId && m.Date >= from && m.Date < to);
+        var q = db.AdMetrics.Where(m => m.CompanyId == companyId && m.Date >= from && m.Date <= to);
         if (!string.IsNullOrEmpty(platform) && platform != "all") q = q.Where(m => m.Platform == platform);
         var impressions = await q.SumAsync(m => (long?)m.Impressions) ?? 0;
         var clicks = await q.SumAsync(m => (long?)m.Clicks) ?? 0;
@@ -3239,9 +3426,9 @@ app.MapGet("/api/analytics/kpis", async (AppDbContext db, HttpContext ctx, strin
 
     return Results.Ok(new
     {
-        current = await Bucket(currStart, now),
+        current = await Bucket(currStart, maxDate),
         previous = await Bucket(prevStart, currStart),
-        asOf = now
+        asOf = maxDate
     });
 }).RequireAuthorization();
 
@@ -3279,7 +3466,8 @@ app.MapGet("/api/analytics/trends", async (AppDbContext db, HttpContext ctx, str
             _ => (videoViews > 0 ? videoViews : impressions)
         };
 
-    DateTime HourKey(DateTime d) => new DateTime(d.Year, d.Month, d.Day, d.Hour, 0, 0, DateTimeKind.Utc);
+    // Bucket dates by BST hour (UTC+6) so chart X-axis labels match what users see in the table.
+    DateTime HourKey(DateTime d) { var bst = d.AddHours(6); return new DateTime(bst.Year, bst.Month, bst.Day, bst.Hour, 0, 0, DateTimeKind.Utc); }
 
     if (splitBy == "split")
     {
@@ -3506,13 +3694,22 @@ app.MapGet("/api/analytics/heatmap", async (AppDbContext db, HttpContext ctx, in
         {
             m.Platform,
             m.Date,
+            m.Impressions,
             Engagement = (m.Likes ?? 0) + (m.Comments ?? 0) + (m.Shares ?? 0) + (m.Saves ?? 0)
         })
         .ToListAsync();
 
+    // Extract hour in BST (UTC+6) so heatmap columns match what users see in the table.
+    // Use impressions as the intensity metric — engagement (likes/comments) is often 0
+    // for paid ads, making the heatmap blank even when ads were actively delivering.
     var grouped = rows
-        .GroupBy(r => new { r.Platform, Hour = r.Date.Hour })
-        .Select(g => new { g.Key.Platform, g.Key.Hour, Avg = g.Average(r => (double)r.Engagement) })
+        .GroupBy(r => new { r.Platform, Hour = r.Date.AddHours(6).Hour })
+        .Select(g => new
+        {
+            g.Key.Platform,
+            g.Key.Hour,
+            Avg = g.Average(r => (double)(r.Impressions > 0 ? r.Impressions : r.Engagement))
+        })
         .ToList();
 
     var platforms = grouped.Select(g => g.Platform).Distinct().ToList();

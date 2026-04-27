@@ -634,6 +634,11 @@ namespace Backend.Models
         [MaxLength(100)]
         public string? FacebookCampaignId { get; set; }
 
+        // Dedicated Google Ads campaign ID for stable UPSERT
+        [Column("google_campaign_id")]
+        [MaxLength(100)]
+        public string? GoogleCampaignId { get; set; }
+
         // Stores platform-specific campaign IDs: {"facebook":"120240...","tiktok":"..."}
         [Column("platform_campaign_ids", TypeName = "jsonb")]
         public JsonElement? PlatformCampaignIds { get; set; }
@@ -737,6 +742,11 @@ namespace Backend.Models
         [MaxLength(100)]
         public string? FacebookAdSetId { get; set; }
 
+        // Dedicated Google Ads ad group ID for stable UPSERT
+        [Column("google_ad_group_id")]
+        [MaxLength(100)]
+        public string? GoogleAdGroupId { get; set; }
+
         [Column("created_by")]
         public int? CreatedBy { get; set; }
 
@@ -806,6 +816,11 @@ namespace Backend.Models
         [Column("facebook_ad_id")]
         [MaxLength(100)]
         public string? FacebookAdId { get; set; }
+
+        // Dedicated Google Ads ad ID for stable UPSERT
+        [Column("google_ad_id")]
+        [MaxLength(100)]
+        public string? GoogleAdId { get; set; }
 
         [Column("review_status")]
         [MaxLength(20)]

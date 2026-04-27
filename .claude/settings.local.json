@@ -25,7 +25,9 @@
       "Bash(npm run *)",
       "Bash(PGPASSWORD='Orion123@' psql *)",
       "Bash(PGPASSWORD='Orion123@' C:/Program Files/PostgreSQL/16/bin/psql.exe *)",
-      "Bash(taskkill *)"
+      "Bash(taskkill *)",
+      "Bash(PGPASSWORD='Orion123@' /c/Program Files/PostgreSQL/16/bin/psql.exe *)",
+      "PowerShell(Stop-Process *)"
     ]
   }
 }

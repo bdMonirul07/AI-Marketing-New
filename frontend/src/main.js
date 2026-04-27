@@ -522,15 +522,15 @@ async function saveCmoQueue() {
 }
 
 async function savePppQueue() {
-  try {
-    await apiFetch('/ppp/queue', {
-      method: 'POST',
-      body: JSON.stringify(state.marketingData.pppQueue || state.marketingData.ppcQueue)
-    })
-    console.log('PPP Queue synced to server.')
-  } catch (e) {
-    console.warn('Could not sync PPP Queue:', e.message)
+  const res = await apiFetch('/ppp/queue', {
+    method: 'POST',
+    body: JSON.stringify(state.marketingData.pppQueue || state.marketingData.ppcQueue)
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`PPP queue sync failed: HTTP ${res.status} ${text}`)
   }
+  console.log('PPP Queue synced to server.')
 }
 
 // Legacy alias
@@ -1827,13 +1827,20 @@ async function renderStudioScreen() {
           duration: a.duration,
           campaignId: state.marketingData.activeCampaignId
         }))
-        state.marketingData.ppcQueue = [...(state.marketingData.ppcQueue || []), ...pppItems]
-        savePppQueue()
+        const prevQueue = state.marketingData.ppcQueue || []
+        state.marketingData.ppcQueue = [...prevQueue, ...pppItems]
+        try {
+          await savePppQueue()
+        } catch (err) {
+          state.marketingData.ppcQueue = prevQueue
+          throw err
+        }
         showNotification(`✅ ${pppItems.length} asset(s) dispatched to PPP queue for budget allocation.`, 'success')
         locallyApproved = []
         dispatchBtn.innerText = `Dispatched ✓`
       } catch (e) {
-        showNotification('Failed to dispatch to PPP queue.', 'error')
+        console.error('Dispatch to PPP failed:', e)
+        showNotification(`Failed to dispatch to PPP queue: ${e.message}`, 'error')
         dispatchBtn.innerText = 'Dispatch to PPP Queue ➡️'
         dispatchBtn.disabled = false
       }
@@ -1857,74 +1864,90 @@ async function renderStudioScreen() {
   }
 }
 
-function renderMonitoringScreen() {
+async function renderMonitoringScreen() {
   contentContainer.innerHTML = `
     <div class="space-y-6">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-            ${[
-      { label: 'Active Ads', val: '42', icon: '🟢', trend: '+12%' },
-      { label: 'AI Killed', val: '184', icon: '🔴', trend: '-5%' },
-      { label: 'Total Spend', val: '$12,482', icon: '💰', trend: '+8%' },
-      { label: 'Efficiency %', val: '94.2%', icon: '⚡', trend: '+2%' }
-    ].map(s => `
-                <div class="bg-[var(--card-bg)] p-5 rounded-2xl border border-[var(--border-color)] relative overflow-hidden group">
-                    <div class="absolute -right-2 -top-2 text-4xl opacity-5 group-hover:opacity-10 transition-opacity">${s.icon === '💰' ? '💵' : '📈'}</div>
-                    <p class="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-widest mb-1">${s.label}</p>
-                    <h3 class="text-2xl font-black text-[var(--text-color)]">${s.val}</h3>
-                    <p class="text-[10px] font-bold ${s.trend.startsWith('+') ? 'text-green-500' : 'text-red-500'} mt-1">${s.trend} ↑</p>
-                </div>
-            `).join('')}
+      <div id="monitoring-kpis" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="col-span-2 md:col-span-4 text-center text-[var(--text-dim)] text-xs py-6">Loading metrics…</div>
+      </div>
+      <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl overflow-hidden">
+        <div class="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
+          <h3 class="font-bold uppercase tracking-widest text-xs">Performance Matrix</h3>
+          <div class="flex items-center gap-1.5">
+            <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
+            <span class="text-[9px] text-[var(--text-dim)] font-bold uppercase tracking-widest">Live</span>
+          </div>
         </div>
-
-        <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl overflow-hidden">
-            <div class="p-4 border-b border-[var(--border-color)] flex justify-between items-center">
-                <h3 class="font-bold uppercase tracking-widest text-xs">Performance Matrix</h3>
-                <div class="flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 bg-green-500 rounded-full animate-ping"></span>
-                    <span class="text-[9px] text-[var(--text-dim)] font-bold uppercase tracking-widest">Live</span>
-                </div>
-            </div>
-            <div class="p-0 overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead class="bg-[var(--bg-color)]/50 text-[10px] text-[var(--text-dim)] uppercase font-black">
-                        <tr>
-                            <th class="px-6 py-4">Campaign Name</th>
-                            <th class="px-6 py-4">ROI Index</th>
-                            <th class="px-6 py-4">Spend</th>
-                            <th class="px-6 py-4">Auto Actions</th>
-                            <th class="px-6 py-4">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-[var(--border-color)]">
-                        ${[
-      { name: 'S-Tier Lifestyle v2', roi: 92, spend: '$2,400', action: 'Scaling Up', status: 'Optimal' },
-      { name: 'Product Reveal Alpha', roi: 84, spend: '$1,850', action: 'Monitoring', status: 'Stable' },
-      { name: 'Growth Hack Beta', roi: 45, spend: '$940', action: 'Shutting Down', status: 'Critical' },
-      { name: 'Retention Main 2024', roi: 78, spend: '$3,100', action: 'Budget Realloc', status: 'Normal' }
-    ].map(r => `
-                            <tr class="hover:bg-gray-800/30 transition-colors">
-                                <td class="px-6 py-4 font-bold text-sm text-[var(--text-color)]">${r.name}</td>
-                                <td class="px-6 py-4">
-                                    <div class="w-32 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                                        <div class="h-full ${r.roi > 80 ? 'bg-cyan-500' : r.roi > 60 ? 'bg-amber-500' : 'bg-rose-500'}" style="width: ${r.roi}%"></div>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-sm font-mono text-gray-400">${r.spend}</td>
-                                <td class="px-6 py-4">
-                                    <span class="text-[10px] font-black px-2 py-1 rounded bg-gray-800/50 ${r.action === 'Scaling Up' ? 'text-cyan-400' : r.status === 'Critical' ? 'text-rose-500' : 'text-gray-500'} uppercase">${r.action}</span>
-                                </td>
-                                <td class="px-6 py-4">
-                                    <span class="w-2 h-2 inline-block rounded-full ${r.status === 'Optimal' ? 'bg-cyan-500' : r.status === 'Critical' ? 'bg-rose-500' : 'bg-gray-500'} mr-2"></span>
-                                    <span class="text-xs font-bold text-[var(--text-dim)]">${r.status}</span>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
+        <div class="p-0 overflow-x-auto">
+          <table class="w-full text-left">
+            <thead class="bg-[var(--bg-color)]/50 text-[10px] text-[var(--text-dim)] uppercase font-black">
+              <tr>
+                <th class="px-6 py-4">Campaign Name</th>
+                <th class="px-6 py-4">ROI Index</th>
+                <th class="px-6 py-4">Spend</th>
+                <th class="px-6 py-4">Auto Actions</th>
+                <th class="px-6 py-4">Status</th>
+              </tr>
+            </thead>
+            <tbody id="monitoring-matrix" class="divide-y divide-[var(--border-color)]">
+              <tr><td colspan="5" class="px-6 py-6 text-center text-[var(--text-dim)] text-xs">Loading…</td></tr>
+            </tbody>
+          </table>
         </div>
+      </div>
     </div>
   `
+
+  try {
+    const res = await apiFetch('/monitoring/overview')
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const data = await res.json()
+
+    const k = data.kpis || {}
+    const fmtMoney = n => '$' + (Number(n) || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })
+    const kpis = [
+      { label: 'Active Ads', val: (k.activeAds ?? 0).toLocaleString(), icon: '🟢' },
+      { label: 'AI Killed', val: (k.killedAds ?? 0).toLocaleString(), icon: '🔴' },
+      { label: 'Total Spend', val: fmtMoney(k.totalSpend), icon: '💰' },
+      { label: 'Efficiency %', val: (Number(k.efficiency) || 0).toFixed(2) + '%', icon: '⚡' }
+    ]
+    document.getElementById('monitoring-kpis').innerHTML = kpis.map(s => `
+      <div class="bg-[var(--card-bg)] p-5 rounded-2xl border border-[var(--border-color)] relative overflow-hidden group">
+        <div class="absolute -right-2 -top-2 text-4xl opacity-5 group-hover:opacity-10 transition-opacity">${s.icon === '💰' ? '💵' : '📈'}</div>
+        <p class="text-[10px] font-bold text-[var(--text-dim)] uppercase tracking-widest mb-1">${s.label}</p>
+        <h3 class="text-2xl font-black text-[var(--text-color)]">${s.val}</h3>
+      </div>
+    `).join('')
+
+    const rows = data.matrix || []
+    const matrixBody = document.getElementById('monitoring-matrix')
+    if (!rows.length) {
+      matrixBody.innerHTML = `<tr><td colspan="5" class="px-6 py-6 text-center text-[var(--text-dim)] text-xs">No campaign metrics available yet.</td></tr>`
+    } else {
+      matrixBody.innerHTML = rows.map(r => `
+        <tr class="hover:bg-gray-800/30 transition-colors">
+          <td class="px-6 py-4 font-bold text-sm text-[var(--text-color)]">${r.name}</td>
+          <td class="px-6 py-4">
+            <div class="w-32 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+              <div class="h-full ${r.roi > 80 ? 'bg-cyan-500' : r.roi > 60 ? 'bg-amber-500' : 'bg-rose-500'}" style="width: ${r.roi}%"></div>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-sm font-mono text-gray-400">${fmtMoney(r.spend)}</td>
+          <td class="px-6 py-4">
+            <span class="text-[10px] font-black px-2 py-1 rounded bg-gray-800/50 ${r.action === 'Scaling Up' ? 'text-cyan-400' : r.status === 'Critical' ? 'text-rose-500' : 'text-gray-500'} uppercase">${r.action}</span>
+          </td>
+          <td class="px-6 py-4">
+            <span class="w-2 h-2 inline-block rounded-full ${r.status === 'Optimal' ? 'bg-cyan-500' : r.status === 'Critical' ? 'bg-rose-500' : 'bg-gray-500'} mr-2"></span>
+            <span class="text-xs font-bold text-[var(--text-dim)]">${r.status}</span>
+          </td>
+        </tr>
+      `).join('')
+    }
+  } catch (e) {
+    console.warn('Monitoring load failed', e)
+    document.getElementById('monitoring-kpis').innerHTML = `<div class="col-span-2 md:col-span-4 text-center text-rose-500 text-xs py-6">Failed to load metrics: ${e.message}</div>`
+    document.getElementById('monitoring-matrix').innerHTML = `<tr><td colspan="5" class="px-6 py-6 text-center text-rose-500 text-xs">Failed to load.</td></tr>`
+  }
 }
 
 // --- User Management (Admin) ---
@@ -3480,10 +3503,11 @@ async function renderApprovedAssetsScreen() {
     Google: 'yellow', Instagram: 'purple', General: 'gray'
   }
   const statusConfig = {
-    pending:             { label: 'Pending', color: 'text-gray-400',   bg: 'bg-gray-800',    icon: '⏳' },
+    received:            { label: 'Received', color: 'text-gray-400',   bg: 'bg-gray-800',    icon: '⏳' },
     budget_configured:   { label: 'Budget Set', color: 'text-amber-400',  bg: 'bg-amber-900/30', icon: '💰' },
     ready_for_approval:  { label: 'Submitted', color: 'text-emerald-400', bg: 'bg-emerald-900/30', icon: '✅' },
-    deployed:            { label: 'Deployed',  color: 'text-cyan-400',   bg: 'bg-cyan-900/30',   icon: '🚀' }
+    deployed:            { label: 'Deployed',  color: 'text-cyan-400',   bg: 'bg-cyan-900/30',   icon: '🚀' },
+    rejected:            { label: 'Rejected', color: 'text-rose-400',   bg: 'bg-rose-900/30', icon: '❌' }
   }
 
   const totalItems    = queue.length
@@ -3500,9 +3524,9 @@ async function renderApprovedAssetsScreen() {
           <span class="text-xs text-gray-500">${items.length} asset${items.length !== 1 ? 's' : ''}</span>
         </div>
         ${items.map((item, idx) => {
-          const sc = statusConfig[item.status] || statusConfig.pending
+          const sc = statusConfig[item.status] || statusConfig.received
           const bud = item.budget || {}
-          const hasBudget = item.status !== 'pending'
+          const hasBudget = item.status !== 'received'
           return `
             <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl overflow-hidden transition-all hover:border-emerald-500/30" id="queue-card-${item.numericId || idx}">
               <!-- Card Header -->
@@ -3617,7 +3641,7 @@ async function renderApprovedAssetsScreen() {
           <span class="text-emerald-400">${totalItems > 0 ? Math.round((budgetSet / totalItems) * 100) : 0}% Complete</span>
         </div>
         <div class="flex gap-2 text-[10px] font-bold">
-          <div class="flex-1 text-center py-1.5 rounded-lg ${queue.some(i => i.status === 'pending') ? 'bg-gray-700 text-gray-300' : 'bg-gray-800 text-gray-600'}">⏳ Pending</div>
+          <div class="flex-1 text-center py-1.5 rounded-lg ${queue.some(i => i.status === 'received') ? 'bg-gray-700 text-gray-300' : 'bg-gray-800 text-gray-600'}">⏳ Received</div>
           <div class="text-gray-600 self-center">→</div>
           <div class="flex-1 text-center py-1.5 rounded-lg ${queue.some(i => i.status === 'budget_configured') ? 'bg-amber-900/40 text-amber-400' : 'bg-gray-800 text-gray-600'}">💰 Budget Set</div>
           <div class="text-gray-600 self-center">→</div>
@@ -4604,140 +4628,125 @@ async function renderPlatformServiceScreen() {
   contentContainer.innerHTML = `<div class="flex items-center justify-center h-64"><div class="animate-spin w-8 h-8 border-2 border-yellow-400 border-t-transparent rounded-full"></div></div>`
 
   try {
-    const res = await apiFetch('/super-admin/platform-service')
-    const data = await res.json()
-    const service = data.status || {}
-    const isEnabled = !!service.isEnabled
-    const isRunning = !!service.isRunning
-    const hasPendingManualRun = !!service.hasPendingManualRun
-    const lastOutcome = service.lastRunOutcome || 'idle'
-    const intervalHours = Number(service.intervalHours || 0)
+    const [fbRes, googleRes] = await Promise.all([
+      apiFetch('/super-admin/platform-service'),
+      apiFetch('/super-admin/google-service')
+    ])
+    const fbData = await fbRes.json()
+    const googleData = await googleRes.json()
 
-    contentContainer.innerHTML = `
-      <div class="space-y-6 max-w-5xl mx-auto">
-        <div class="flex items-start justify-between gap-4">
-          <div class="space-y-2">
-            <h2 class="text-3xl font-black tracking-tight uppercase bg-gradient-to-r from-yellow-400 to-amber-500 bg-clip-text text-transparent">Platform Service</h2>
-            <p class="text-sm text-gray-400">Control the background metrics platform service and trigger an immediate update.</p>
-          </div>
-          <div class="flex flex-wrap gap-2">
-            <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${getPlatformServiceStatePillClass(isEnabled)}">${isEnabled ? 'Running' : 'Stopped'}</span>
-            <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${isRunning ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'}">${isRunning ? 'Fetching Now' : 'Idle'}</span>
-            ${hasPendingManualRun ? '<span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/20">Update Queued</span>' : ''}
-          </div>
-        </div>
+    const renderServiceCard = (data, prefix, accentColor, icon, label) => {
+      const service = data.status || {}
+      const isEnabled = !!service.isEnabled
+      const isRunning = !!service.isRunning
+      const hasPending = !!service.hasPendingManualRun
+      const lastOutcome = service.lastRunOutcome || 'idle'
+      const intervalHours = Number(service.intervalHours || 0)
 
-        <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-6 space-y-6">
-          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+      return `
+        <div class="bg-[var(--card-bg)] border border-[var(--border-color)] rounded-2xl p-6 space-y-5">
+          <!-- Header -->
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">${icon}</span>
+              <div>
+                <h3 class="text-lg font-black uppercase tracking-tight text-white">${label}</h3>
+                <p class="text-[10px] text-gray-500 font-mono">${data.serviceName || ''}</p>
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-1.5 justify-end">
+              <span class="px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest ${getPlatformServiceStatePillClass(isEnabled)}">${isEnabled ? 'Running' : 'Stopped'}</span>
+              <span class="px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest ${isRunning ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20' : 'bg-gray-500/10 text-gray-400 border border-gray-500/20'}">${isRunning ? 'Fetching' : 'Idle'}</span>
+              ${hasPending ? '<span class="px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest bg-amber-500/10 text-amber-400 border border-amber-500/20">Queued</span>' : ''}
+            </div>
+          </div>
+
+          <!-- Stats grid -->
+          <div class="grid grid-cols-2 gap-2">
             ${[
-              { label: 'Service Name', value: data.serviceName || 'MetricsFetchService' },
-              { label: 'Schedule Interval', value: `${intervalHours} hours` },
-              { label: 'Last Trigger', value: service.lastRunTrigger || '—' },
-              { label: 'Last Outcome', value: `<span class="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${getPlatformServiceOutcomePillClass(lastOutcome)}">${lastOutcome}</span>` }
-            ].map(card => `
-              <div class="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl p-4">
-                <div class="text-[10px] font-bold uppercase tracking-widest text-gray-500">${card.label}</div>
-                <div class="text-sm font-bold mt-2">${card.value}</div>
+              { label: 'Interval', value: `${intervalHours}h` },
+              { label: 'Trigger', value: service.lastRunTrigger || '—' },
+              { label: 'Last Run', value: formatPlatformServiceDate(service.lastRunCompletedAt) },
+              { label: 'Outcome', value: `<span class="inline-flex px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${getPlatformServiceOutcomePillClass(lastOutcome)}">${lastOutcome}</span>` }
+            ].map(c => `
+              <div class="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl p-3">
+                <div class="text-[9px] font-bold uppercase tracking-widest text-gray-500">${c.label}</div>
+                <div class="text-xs font-bold mt-1">${c.value}</div>
               </div>
             `).join('')}
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div class="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl p-4 space-y-3">
-              <h3 class="font-bold text-white">Service Timeline</h3>
-              <div class="flex justify-between gap-4"><span class="text-gray-400">Last Enabled</span><span class="text-right">${formatPlatformServiceDate(service.lastEnabledAt)}</span></div>
-              <div class="flex justify-between gap-4"><span class="text-gray-400">Last Disabled</span><span class="text-right">${formatPlatformServiceDate(service.lastDisabledAt)}</span></div>
-              <div class="flex justify-between gap-4"><span class="text-gray-400">Last Run Started</span><span class="text-right">${formatPlatformServiceDate(service.lastRunStartedAt)}</span></div>
-              <div class="flex justify-between gap-4"><span class="text-gray-400">Last Run Completed</span><span class="text-right">${formatPlatformServiceDate(service.lastRunCompletedAt)}</span></div>
-            </div>
-
-            <div class="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl p-4 space-y-3">
-              <h3 class="font-bold text-white">Latest Run Details</h3>
-              <div class="flex justify-between gap-4"><span class="text-gray-400">Last Success</span><span class="text-right">${formatPlatformServiceDate(service.lastSuccessfulRunAt)}</span></div>
-              <div class="flex justify-between gap-4"><span class="text-gray-400">Last Failure</span><span class="text-right">${formatPlatformServiceDate(service.lastFailedRunAt)}</span></div>
-              <div class="space-y-2">
-                <div class="text-gray-400">Last Error</div>
-                <div class="min-h-12 rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-2 text-sm ${service.lastError ? 'text-rose-300' : 'text-gray-500'}">${service.lastError || 'No recent error.'}</div>
-              </div>
-            </div>
+          <!-- Timeline -->
+          <div class="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl p-4 space-y-2 text-xs">
+            <div class="font-bold text-white mb-2">Timeline</div>
+            <div class="flex justify-between gap-2"><span class="text-gray-500">Last Success</span><span>${formatPlatformServiceDate(service.lastSuccessfulRunAt)}</span></div>
+            <div class="flex justify-between gap-2"><span class="text-gray-500">Last Failure</span><span class="${service.lastFailedRunAt ? 'text-rose-400' : ''}">${formatPlatformServiceDate(service.lastFailedRunAt)}</span></div>
+            <div class="flex justify-between gap-2"><span class="text-gray-500">Started</span><span>${formatPlatformServiceDate(service.lastRunStartedAt)}</span></div>
+            ${service.lastError ? `<div class="mt-2 px-3 py-2 bg-rose-500/10 border border-rose-500/20 rounded-lg text-rose-400 text-[10px] break-all">${service.lastError}</div>` : ''}
           </div>
 
-          <div class="bg-[var(--bg-color)] border border-[var(--border-color)] rounded-xl p-4 space-y-3">
-            <div class="flex items-center justify-between gap-4 flex-wrap">
-              <div>
-                <h3 class="font-bold text-white">Schedule Interval</h3>
-                <p class="text-xs text-gray-400 mt-1">Set how often the Platform Service runs automatically.</p>
-              </div>
-              <div class="flex items-end gap-3">
-                <label class="space-y-2">
-                  <span class="text-[10px] font-bold uppercase tracking-widest text-gray-500">Hours</span>
-                  <input id="platform-service-interval" type="number" min="0.25" max="168" step="0.25" value="${intervalHours}" class="w-32 bg-black/20 border border-[var(--border-color)] rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-yellow-500">
-                </label>
-                <button id="platform-service-save-interval" class="px-5 py-2.5 bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded-xl font-bold text-sm hover:bg-cyan-500/20 transition-all cursor-pointer">Save Interval</button>
-              </div>
+          <!-- Interval control -->
+          <div class="flex items-center gap-3">
+            <div class="flex-1">
+              <label class="text-[9px] font-bold uppercase tracking-widest text-gray-500 block mb-1">Schedule (hours)</label>
+              <input id="${prefix}-interval" type="number" min="0.25" max="168" step="0.25" value="${intervalHours}"
+                class="w-full bg-black/20 border border-[var(--border-color)] rounded-xl px-3 py-2 text-sm font-medium outline-none focus:border-${accentColor}-500">
             </div>
+            <button id="${prefix}-save-interval" class="mt-5 px-4 py-2 bg-${accentColor}-500/10 border border-${accentColor}-500/30 text-${accentColor}-400 rounded-xl font-bold text-xs hover:bg-${accentColor}-500/20 transition-all cursor-pointer">Save</button>
           </div>
 
-          <div class="flex flex-wrap gap-3">
-            <button id="platform-service-start" class="px-6 py-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl font-bold text-sm hover:bg-emerald-500/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" ${isEnabled ? 'disabled' : ''}>Start</button>
-            <button id="platform-service-stop" class="px-6 py-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl font-bold text-sm hover:bg-rose-500/20 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" ${!isEnabled && !isRunning && !hasPendingManualRun ? 'disabled' : ''}>Stop</button>
-            <button id="platform-service-update" class="px-6 py-3 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-xl font-bold text-sm hover:bg-yellow-500/20 transition-all cursor-pointer">Update</button>
+          <!-- Action buttons -->
+          <div class="flex gap-2">
+            <button id="${prefix}-start" class="flex-1 py-2.5 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl font-bold text-xs hover:bg-emerald-500/20 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" ${isEnabled ? 'disabled' : ''}>Start</button>
+            <button id="${prefix}-stop" class="flex-1 py-2.5 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-xl font-bold text-xs hover:bg-rose-500/20 transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" ${!isEnabled && !isRunning && !hasPending ? 'disabled' : ''}>Stop</button>
+            <button id="${prefix}-update" class="flex-1 py-2.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-xl font-bold text-xs hover:bg-yellow-500/20 transition-all cursor-pointer">Update</button>
           </div>
+        </div>
+      `
+    }
+
+    contentContainer.innerHTML = `
+      <div class="space-y-6 max-w-6xl mx-auto">
+        <div class="space-y-1">
+          <h2 class="text-3xl font-black tracking-tight uppercase bg-gradient-to-r from-yellow-400 to-amber-500 bg-clip-text text-transparent">Platform Service</h2>
+          <p class="text-sm text-gray-400">Control the background metrics sync services. Each platform runs independently on its own schedule.</p>
+        </div>
+        <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+          ${renderServiceCard(fbData, 'fb-svc', 'blue', '📘', 'Facebook Ads Service')}
+          ${renderServiceCard(googleData, 'google-svc', 'red', '🔍', 'Google Ads Service')}
         </div>
       </div>
     `
 
-    const handlePlatformServiceAction = async (path, successMessage) => {
-      try {
-        await apiFetch(path, { method: 'POST' })
-        showNotification(successMessage, 'success')
-        await renderPlatformServiceScreen()
-      } catch (e) {
-        showNotification(e.message, 'error')
+    const wireService = (prefix, basePath, label) => {
+      const act = async (path, msg) => {
+        try { await apiFetch(path, { method: 'POST' }); showNotification(msg, 'success'); await renderPlatformServiceScreen() }
+        catch (e) { showNotification(e.message, 'error') }
       }
+      document.getElementById(`${prefix}-start`)?.addEventListener('click', () => act(`${basePath}/start`, `${label} started.`))
+      document.getElementById(`${prefix}-stop`)?.addEventListener('click', () => act(`${basePath}/stop`, `${label} stopped.`))
+      document.getElementById(`${prefix}-update`)?.addEventListener('click', () => act(`${basePath}/update`, `${label} update requested.`))
+      document.getElementById(`${prefix}-save-interval`)?.addEventListener('click', async (evt) => {
+        const btn = evt.currentTarget
+        const value = Number(document.getElementById(`${prefix}-interval`)?.value)
+        if (!Number.isFinite(value) || value < 0.25 || value > 168) {
+          showNotification('Interval must be between 0.25 and 168 hours.', 'error'); return
+        }
+        btn.disabled = true; btn.textContent = 'Saving…'
+        try {
+          await apiFetch(`${basePath}/interval`, { method: 'POST', body: JSON.stringify({ intervalHours: value }) })
+          showNotification(`${label} interval updated to ${value} hours.`, 'success')
+          await renderPlatformServiceScreen()
+        } catch (e) {
+          showNotification('Save failed: ' + e.message, 'error')
+          btn.disabled = false; btn.textContent = 'Save'
+        }
+      })
     }
 
-    document.getElementById('platform-service-start')?.addEventListener('click', () =>
-      handlePlatformServiceAction('/super-admin/platform-service/start', 'Platform Service started.')
-    )
-    document.getElementById('platform-service-stop')?.addEventListener('click', () =>
-      handlePlatformServiceAction('/super-admin/platform-service/stop', 'Platform Service stopped.')
-    )
-    document.getElementById('platform-service-update')?.addEventListener('click', () =>
-      handlePlatformServiceAction('/super-admin/platform-service/update', 'Platform Service update requested.')
-    )
-    document.getElementById('platform-service-save-interval')?.addEventListener('click', async (evt) => {
-      const btn = evt.currentTarget
-      const input = document.getElementById('platform-service-interval')
-      const value = Number(input?.value)
+    wireService('fb-svc', '/super-admin/platform-service', 'Facebook Ads Service')
+    wireService('google-svc', '/super-admin/google-service', 'Google Ads Service')
 
-      console.log('[PlatformService] Save interval clicked. value=', input?.value, 'parsed=', value)
-
-      if (!Number.isFinite(value) || value < 0.25 || value > 168) {
-        showNotification('Schedule interval must be between 0.25 and 168 hours.', 'error')
-        return
-      }
-
-      btn.disabled = true
-      const originalText = btn.textContent
-      btn.textContent = 'Saving…'
-
-      try {
-        const res = await apiFetch('/super-admin/platform-service/interval', {
-          method: 'POST',
-          body: JSON.stringify({ intervalHours: value })
-        })
-        const payload = await res.json()
-        console.log('[PlatformService] Interval saved. New status:', payload?.status)
-        showNotification(`Platform Service interval updated to ${value} hours.`, 'success')
-        await renderPlatformServiceScreen()
-      } catch (e) {
-        console.error('[PlatformService] Interval save failed:', e)
-        showNotification('Save failed: ' + e.message, 'error')
-        btn.disabled = false
-        btn.textContent = originalText
-      }
-    })
   } catch (e) {
     contentContainer.innerHTML = `<div class="text-center text-red-400 p-8">Failed to load Platform Service: ${e.message}</div>`
   }
@@ -4902,6 +4911,11 @@ async function ensureChartJs() {
 async function renderCrossPlatformAnalyticsScreen() {
   if (!checkCompanyContext()) return
   await ensureChartJs()
+
+  // Destroy existing Chart.js instances before replacing the DOM — stale references
+  // would cause .update() to silently operate on detached canvases on next load.
+  if (analyticsState.trendChart) { analyticsState.trendChart.destroy(); analyticsState.trendChart = null; }
+  if (analyticsState.retentionChart) { analyticsState.retentionChart.destroy(); analyticsState.retentionChart = null; }
 
   contentContainer.innerHTML = `
     <div class="space-y-6">
@@ -5076,15 +5090,28 @@ async function renderCrossPlatformAnalyticsScreen() {
 }
 
 async function analyticsReloadAll() {
-  document.getElementById('ua-platformLabel').textContent = analyticsState.platform === 'all' ? 'All platforms' : (ANALYTICS_PLATFORMS[analyticsState.platform]?.name || analyticsState.platform)
-  await Promise.all([loadKpis(), loadTrends(), loadPosts(), loadVirality(), loadHeatmap()])
-  if (analyticsState.selectedPostId) loadRetention()
+  const refreshBtn = document.getElementById('ua-refresh')
+  const asOfEl = document.getElementById('ua-asOf')
+  if (refreshBtn) { refreshBtn.disabled = true; refreshBtn.textContent = 'Refreshing…' }
+  if (asOfEl) asOfEl.textContent = 'Refreshing…'
+
+  const platLabel = document.getElementById('ua-platformLabel')
+  if (platLabel) platLabel.textContent = analyticsState.platform === 'all' ? 'All platforms' : (ANALYTICS_PLATFORMS[analyticsState.platform]?.name || analyticsState.platform)
+
+  try {
+    await Promise.all([loadKpis(), loadTrends(), loadPosts(), loadVirality(), loadHeatmap()])
+    if (analyticsState.selectedPostId) await loadRetention()
+  } finally {
+    if (refreshBtn) { refreshBtn.disabled = false; refreshBtn.textContent = 'Refresh' }
+  }
 }
 
 async function loadKpis() {
   try {
     const res = await apiFetch(`/analytics/kpis?platform=${analyticsState.platform}&hours=${analyticsState.rangeHours}`)
-    const { current, previous } = await res.json()
+    const { current, previous, asOf } = await res.json()
+    const asOfEl = document.getElementById('ua-asOf')
+    if (asOfEl && asOf) asOfEl.textContent = 'As of ' + new Date(asOf).toLocaleString()
     const kpis = [
       { label: 'Impressions (1h)', val: fmtN(current.impressions), delta: fmtDelta(current.impressions, previous.impressions) },
       { label: 'Views (1h)',       val: fmtN(current.views),       delta: fmtDelta(current.views, previous.views) },
