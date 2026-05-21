@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Unified Hourly Analytics — Calculation Reference</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 11pt;
+    color: #1a1a2e;
+    background: #fff;
+    padding: 40px 50px;
+    line-height: 1.6;
+  }
+  /* ── Cover ── */
+  .cover {
+    text-align: center;
+    padding: 60px 0 40px;
+    border-bottom: 3px solid #4f46e5;
+    margin-bottom: 36px;
+    page-break-after: avoid;
+  }
+  .cover .logo-bar {
+    font-size: 10pt;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #4f46e5;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+  .cover h1 {
+    font-size: 26pt;
+    font-weight: 800;
+    color: #1a1a2e;
+    line-height: 1.2;
+    margin-bottom: 10px;
+  }
+  .cover .subtitle {
+    font-size: 13pt;
+    color: #6b7280;
+    margin-bottom: 24px;
+  }
+  .cover .meta {
+    font-size: 9.5pt;
+    color: #9ca3af;
+  }
+  /* ── TOC ── */
+  .toc {
+    background: #f8f9ff;
+    border: 1px solid #e0e7ff;
+    border-radius: 8px;
+    padding: 20px 28px;
+    margin-bottom: 36px;
+    page-break-inside: avoid;
+  }
+  .toc h2 { font-size: 11pt; color: #4f46e5; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .toc ol { padding-left: 20px; }
+  .toc li { margin-bottom: 4px; font-size: 10.5pt; color: #374151; }
+  /* ── Section headings ── */
+  .section {
+    margin-bottom: 36px;
+    page-break-inside: avoid;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(135deg, #4f46e5, #7c3aed);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+  }
+  .section-header .num {
+    background: rgba(255,255,255,0.25);
+    border-radius: 50%;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10pt; font-weight: 800;
+  }
+  .section-header h2 { font-size: 13pt; font-weight: 700; }
+  .subsection { margin-bottom: 20px; padding-left: 4px; }
+  .subsection h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #4f46e5;
+    border-left: 3px solid #4f46e5;
+    padding-left: 10px;
+    margin-bottom: 10px;
+  }
+  p { margin-bottom: 8px; color: #374151; font-size: 10.5pt; }
+  /* ── Formula boxes ── */
+  .formula {
+    background: #1e1b4b;
+    color: #e0e7ff;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 10pt;
+    padding: 14px 18px;
+    border-radius: 6px;
+    margin: 10px 0 14px;
+    white-space: pre;
+    line-height: 1.7;
+    border-left: 4px solid #818cf8;
+  }
+  /* ── Example boxes ── */
+  .example {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-left: 4px solid #22c55e;
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin: 8px 0 14px;
+    font-size: 10pt;
+    color: #166534;
+  }
+  .example strong { font-weight: 700; }
+  /* ── Info note ── */
+  .note {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-left: 4px solid #f59e0b;
+    border-radius: 6px;
+    padding: 10px 16px;
+    margin: 8px 0 14px;
+    font-size: 10pt;
+    color: #92400e;
+  }
+  /* ── Tables ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 16px;
+    font-size: 10pt;
+  }
+  th {
+    background: #4f46e5;
+    color: #fff;
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+  }
+  td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #374151;
+  }
+  tr:nth-child(even) td { background: #f9fafb; }
+  /* ── Anchor box ── */
+  .anchor-box {
+    background: #fdf4ff;
+    border: 1.5px solid #d8b4fe;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 28px;
+  }
+  .anchor-box h3 {
+    color: #7c3aed;
+    font-size: 11pt;
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  /* ── Page break ── */
+  .page-break { page-break-before: always; }
+  /* ── Footer ── */
+  footer {
+    margin-top: 48px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+    font-size: 9pt;
+    color: #9ca3af;
+    text-align: center;
+  }
+  .badge {
+    display: inline-block;
+    background: #ede9fe;
+    color: #5b21b6;
+    font-size: 8.5pt;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 6px;
+  }
+  .badge-green {
+    background: #dcfce7;
+    color: #166534;
+  }
+  .badge-amber {
+    background: #fffbeb;
+    color: #92400e;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════ COVER ═══════════════════════ -->
+<div class="cover">
+  <div class="logo-bar">AI-Marketer Platform OS v4.0</div>
+  <h1>Unified Hourly Analytics<br>Calculation Reference</h1>
+  <div class="subtitle">Complete formula documentation for all metrics displayed<br>in the Cross-Platform Analytics dashboard</div>
+  <div class="meta">
+    Data source: <strong>ad_metrics</strong> table (PostgreSQL) &nbsp;|&nbsp;
+    Prepared: April 2026 &nbsp;|&nbsp;
+    Confidential — Internal Use Only
+  </div>
+</div>
+
+<!-- ═══════════════════════ TOC ═══════════════════════ -->
+<div class="toc">
+  <h2>Table of Contents</h2>
+  <ol>
+    <li>Global Data Anchor — How the time window is determined</li>
+    <li>KPI Bar Cards — Impressions, Views, Engagement Rate, CTR, Followers, Revenue + Delta Arrows</li>
+    <li>Hourly Trends Chart — Time-series line chart calculations</li>
+    <li>Post Performance — Last Hour — Per-ad Views, ER, Velocity, Virality, Sparkline</li>
+    <li>Virality Detection — Lift score, Spike alerts, Engagement velocity</li>
+    <li>Audience Activity Heatmap — Hourly intensity grid</li>
+    <li>Video Deep Insights — Avg Watch, Completion Rate, Retention Curve</li>
+  </ol>
+</div>
+
+
+<!-- ═══════════════════════ SECTION 0: ANCHOR ═══════════════════════ -->
+<div class="anchor-box">
+  <h3>🔒 Global Data Anchor — Applies to ALL Sections</h3>
+  <p>
+    Before any calculation runs, the system finds the <strong>most recent timestamp that contains real ad delivery</strong>.
+    This anchor is used instead of the server's live clock to prevent Facebook's zero-delivery
+    sync rows (inserted for the in-progress current hour) from pushing every window past all actual data.
+  </p>
+  <div class="formula">maxDate = MAX( date ) FROM ad_metrics
+         WHERE ( impressions &gt; 0  OR  clicks &gt; 0  OR  spend &gt; 0 )
+           AND company_id = &lt;current company&gt;
+           AND platform   = &lt;selected platform, or all&gt;
+
+If no rows match → maxDate = DateTime.UtcNow  (safe fallback)</div>
+  <p>All "Current 1H" windows are <code>[maxDate − 1 hour, maxDate]</code>.
+     All "Previous 1H" windows are <code>[maxDate − 2 hours, maxDate − 1 hour]</code>.</p>
+</div>
+
+
+<!-- ═══════════════════════ SECTION 1: KPI BAR ═══════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="num">1</div>
+    <h2>KPI Bar Cards</h2>
+  </div>
+  <p>
+    Six summary cards appear at the top of the analytics page.
+    Each shows a <strong>current-hour value</strong> and a <strong>delta arrow</strong> comparing it to the previous hour.
+    All sums are drawn from rows where <code>date ∈ [maxDate − 1h, maxDate]</code>.
+  </p>
+
+  <table>
+    <tr><th>Bucket</th><th>Time Range</th></tr>
+    <tr><td><strong>Current (1H)</strong></td><td>maxDate − 1 hour  →  maxDate</td></tr>
+    <tr><td><strong>Previous (1H)</strong></td><td>maxDate − 2 hours  →  maxDate − 1 hour</td></tr>
+  </table>
+
+  <!-- A: Impressions -->
+  <div class="subsection">
+    <h3>A. Impressions (1H)</h3>
+    <p>Total number of times ads were displayed in the current hour.</p>
+    <div class="formula">Impressions = SUM( ad_metrics.impressions )
+                 WHERE date ∈ Current (1H) window</div>
+  </div>
+
+  <!-- B: Views -->
+  <div class="subsection">
+    <h3>B. Views (1H)</h3>
+    <p>
+      Uses <em>video views</em> when available (YouTube, TikTok, Facebook video ads);
+      falls back to <em>impressions</em> for image/static ads.
+    </p>
+    <div class="formula">videoViews = SUM( ad_metrics.video_views )   WHERE date ∈ Current (1H) window
+
+Views = IF videoViews &gt; 0
+        THEN  videoViews
+        ELSE  impressions</div>
+  </div>
+
+  <!-- C: Engagement Rate -->
+  <div class="subsection">
+    <h3>C. Engagement Rate</h3>
+    <p>
+      Engagement is the sum of all social interactions.
+      Rate is normalised against impressions so it is comparable across different ad sizes.
+    </p>
+    <div class="formula">engagement = SUM(likes) + SUM(comments) + SUM(shares) + SUM(saves)
+                  WHERE date ∈ Current (1H) window
+
+ER = engagement ÷ impressions × 100%
+   = 0%  if impressions = 0</div>
+    <div class="example">
+      <strong>Example:</strong> likes=120, comments=30, shares=18, saves=12 → engagement=180<br>
+      impressions=4,800 → ER = 180 ÷ 4,800 × 100 = <strong>3.75%</strong>
+    </div>
+  </div>
+
+  <!-- D: CTR -->
+  <div class="subsection">
+    <h3>D. CTR — Click-Through Rate</h3>
+    <p>Measures how often people click an ad after seeing it.</p>
+    <div class="formula">CTR = SUM( clicks ) ÷ SUM( impressions ) × 100%
+    = 0%  if impressions = 0</div>
+    <div class="example">
+      <strong>Example:</strong> clicks=96, impressions=4,800<br>
+      CTR = 96 ÷ 4,800 × 100 = <strong>2.00%</strong>
+    </div>
+  </div>
+
+  <!-- E: Followers -->
+  <div class="subsection">
+    <h3>E. Followers Gained</h3>
+    <p>Total new followers attributed to the ads in the current hour.</p>
+    <div class="formula">Followers = SUM( ad_metrics.followers_gained )
+                WHERE date ∈ Current (1H) window</div>
+  </div>
+
+  <!-- F: Revenue -->
+  <div class="subsection">
+    <h3>F. Revenue (1H)</h3>
+    <p>
+      Total conversion value generated in the current hour.
+      For Facebook: derived from conversion actions multiplied by an average order value.
+    </p>
+    <div class="formula">Revenue = SUM( ad_metrics.conversion_value )
+              WHERE date ∈ Current (1H) window</div>
+  </div>
+
+  <!-- G: Delta -->
+  <div class="subsection">
+    <h3>G. Delta Arrow (▲▼ vs prev hr)</h3>
+    <p>Shown in small text below each card value. Compares the current hour to the previous hour.</p>
+    <div class="formula">delta = ( current_value − previous_value ) ÷ previous_value × 100%
+
+Display:
+  ▲ X.X% vs prev hr  — green  — if delta ≥ 0
+  ▼ X.X% vs prev hr  — red   — if delta &lt; 0
+  —                  — grey  — if previous_value = 0</div>
+    <div class="example">
+      <strong>Example:</strong> current impressions = 5,200 · previous = 4,000<br>
+      delta = (5,200 − 4,000) ÷ 4,000 × 100 = <strong>▲ 30.0% vs prev hr</strong>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ SECTION 2: TRENDS ═══════════════════════ -->
+<div class="section page-break">
+  <div class="section-header">
+    <div class="num">2</div>
+    <h2>Hourly Trends Chart</h2>
+  </div>
+  <p>
+    The line chart shows metric volume over time. The user can toggle between <em>Views, Engagement, Watch time,</em>
+    and <em>Followers</em>, and switch between <em>Combined</em> (all platforms, one line) and
+    <em>By Platform</em> (one line per platform).
+  </p>
+
+  <!-- Time window -->
+  <div class="subsection">
+    <h3>A. Time Window</h3>
+    <div class="formula">window = last &lt;N&gt; hours from DateTime.UtcNow
+default N = 48 hours   (selectable: 24h or 48h via the Range toggle)</div>
+  </div>
+
+  <!-- Timezone -->
+  <div class="subsection">
+    <h3>B. Hour Bucketing &amp; Timezone</h3>
+    <p>
+      Each raw database row has a UTC timestamp. Before grouping,
+      <strong>6 hours are added</strong> (UTC → BST / GMT+6) so the X-axis labels
+      match local business time.
+    </p>
+    <div class="formula">hourKey = ( record.Date + 6 hours ) truncated to the start of that hour
+
+Example:  record.Date = 2026-04-27 07:30 UTC
+          hourKey     = 2026-04-27 13:00 BST   (displayed as "Apr 27, 01 PM")</div>
+  </div>
+
+  <!-- Metric formulas -->
+  <div class="subsection">
+    <h3>C. Metric Value per Hour Bucket</h3>
+    <p>The selected tab determines which field is summed within each hour bucket:</p>
+    <table>
+      <tr>
+        <th>Tab</th>
+        <th>Per-row value</th>
+        <th>Aggregation</th>
+      </tr>
+      <tr>
+        <td><strong>Views</strong> (default)</td>
+        <td><code>videoViews &gt; 0 ? videoViews : impressions</code></td>
+        <td>SUM per hour</td>
+      </tr>
+      <tr>
+        <td><strong>Engagement</strong></td>
+        <td><code>likes + comments + shares + saves</code></td>
+        <td>SUM per hour</td>
+      </tr>
+      <tr>
+        <td><strong>Watch time</strong></td>
+        <td><code>video_views × avg_watch_seconds</code></td>
+        <td>SUM per hour (total seconds)</td>
+      </tr>
+      <tr>
+        <td><strong>Followers</strong></td>
+        <td><code>followers_gained</code></td>
+        <td>SUM per hour</td>
+      </tr>
+    </table>
+    <div class="note">
+      <strong>Why video_views × avg_watch_seconds?</strong><br>
+      Facebook reports <em>average</em> watch time per view. Multiplying by views gives total watch-seconds for
+      that hour bucket, making platform comparison fair regardless of audience size.
+    </div>
+  </div>
+
+  <!-- Split -->
+  <div class="subsection">
+    <h3>D. Combined vs By Platform</h3>
+    <div class="formula">Combined  → group by hourKey only
+               → one data series: value = SUM across all platforms
+
+By Platform → group by (platform, hourKey)
+             → one data series per platform
+             → missing platform+hour combinations = 0</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ SECTION 3: POST PERFORMANCE ═══════════════════════ -->
+<div class="section page-break">
+  <div class="section-header">
+    <div class="num">3</div>
+    <h2>Post Performance — Last Hour</h2>
+  </div>
+  <p>
+    Shows per-ad metrics for the last hour of data. Only rows where <code>ad_id IS NOT NULL</code>
+    are included — this means only ads that were synced from the ad platform (Facebook) with a
+    proper Ad ID. Simulated rows without an ad_id are excluded.
+  </p>
+
+  <!-- Windows -->
+  <div class="subsection">
+    <h3>A. Per-Ad Time Windows</h3>
+    <div class="formula">anchor = MAX( date ) FROM ad_metrics
+       WHERE ad_id IS NOT NULL
+         AND ( impressions &gt; 0  OR  clicks &gt; 0 )
+         AND company_id = &lt;current company&gt;
+
+last  window = [ anchor − 1h,  anchor ]      ← "this hour"
+prev  window = [ anchor − 2h,  anchor − 1h ] ← "previous hour"
+
+Data fetched: all rows for that ad in the last 48-hour window</div>
+  </div>
+
+  <!-- Views -->
+  <div class="subsection">
+    <h3>B. Views (1H)</h3>
+    <div class="formula">lastViews = SUM( videoViews &gt; 0 ? videoViews : impressions )
+              for all rows of THIS AD in the `last` window</div>
+    <div class="example">
+      <strong>Example:</strong> Ad "BU AU LECTURE SERIES 4 LAW" has 3 rows in the last window:<br>
+      row1: videoViews=100, row2: videoViews=95, row3: videoViews=96<br>
+      lastViews = 100 + 95 + 96 = <strong>291</strong>
+    </div>
+  </div>
+
+  <!-- ER -->
+  <div class="subsection">
+    <h3>C. ER — Engagement Rate</h3>
+    <div class="formula">lastImpr = SUM( impressions )                          in `last` window for this ad
+lastEng  = SUM( likes + comments + shares + saves )   in `last` window for this ad
+
+ER = lastEng ÷ lastImpr × 100%
+   = 0%  if lastImpr = 0</div>
+    <div class="example">
+      <strong>Example:</strong> lastImpr=42,300 · lastEng=291 (likes=210, comments=26, shares=0, saves=55)<br>
+      ER = 291 ÷ 42,300 × 100 = <strong>0.69%</strong>
+    </div>
+  </div>
+
+  <!-- Velocity -->
+  <div class="subsection">
+    <h3>D. Velocity &amp; Velocity %</h3>
+    <p>
+      <strong>Velocity</strong> is simply the last-hour view count expressed as a per-hour rate.
+      <strong>Velocity %</strong> shows how much that rate changed compared to the previous hour.
+    </p>
+    <div class="formula">velocity    = lastViews   (same number as Views 1H)
+
+prevViews   = SUM( videoViews &gt; 0 ? videoViews : impressions )
+              in `prev` window for this ad
+
+velocityPct = ( lastViews − prevViews ) ÷ prevViews × 100%
+            = 0%  if prevViews = 0
+
+Display: "291/hr  (+23%)"
+  → 291 = velocity
+  → +23% = velocityPct</div>
+    <div class="example">
+      <strong>Example:</strong> lastViews=291 · prevViews=236<br>
+      velocityPct = (291 − 236) ÷ 236 × 100 = <strong>+23.3%</strong> → shown as "(23%)"
+    </div>
+  </div>
+
+  <!-- Virality -->
+  <div class="subsection">
+    <h3>E. Virality Score</h3>
+    <p>
+      Measures the share of viewers who shared the ad — the most reliable proxy for organic amplification.
+    </p>
+    <div class="formula">lastShares = SUM( shares )       in `last` window for this ad
+lastImpr   = SUM( impressions )  in `last` window for this ad
+
+virality = lastShares ÷ lastImpr × 100%
+         = 0%  if lastImpr = 0</div>
+  </div>
+
+  <!-- Trending / Dropping -->
+  <div class="subsection">
+    <h3>F. Trending 🔥 / Dropping ⚠️ Flags</h3>
+    <div class="formula">🔥  trending = ( velocityPct &gt;  +50% )   → views grew more than 50% vs prev hour
+⚠️  dropping = ( velocityPct &lt;  −50% )   → views fell  more than 50% vs prev hour
+    (no flag)  otherwise</div>
+  </div>
+
+  <!-- Sparkline -->
+  <div class="subsection">
+    <h3>G. Sparkline (mini chart)</h3>
+    <div class="formula">Take the last 12 rows for this ad (ordered oldest → newest)
+Each point = videoViews &gt; 0 ? videoViews : impressions
+
+Normalised to a 80×24 pixel SVG path for display.</div>
+  </div>
+
+  <!-- Age -->
+  <div class="subsection">
+    <h3>H. Ad Age</h3>
+    <div class="formula">ageHours = FLOOR( ( DateTime.UtcNow − ad.created_at ).TotalHours )</div>
+    <div class="example">
+      <strong>Example:</strong> ad created 2026-04-21 08:00 UTC · now = 2026-04-27 02:00 UTC<br>
+      ageHours = floor(138.0) = <strong>137h old</strong>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ SECTION 4: VIRALITY ═══════════════════════ -->
+<div class="section page-break">
+  <div class="section-header">
+    <div class="num">4</div>
+    <h2>Virality Detection</h2>
+  </div>
+  <p>
+    Identifies ads experiencing a sudden delivery surge by comparing their
+    recent hourly rate to their baseline hourly rate over the prior 6 hours.
+    Returns the top 5 risers and flags any spike above +200%.
+  </p>
+
+  <!-- Windows -->
+  <div class="subsection">
+    <h3>A. Time Windows</h3>
+    <div class="formula">anchor        = MAX( date ) WHERE impressions &gt; 0 OR clicks &gt; 0   (same global anchor)
+
+recentStart   = anchor − 2h
+baselineStart = anchor − 8h
+
+Recent period   = [ recentStart,   anchor ]         → last 2 hours
+Baseline period = [ baselineStart, recentStart )     → 6 hours before recent</div>
+  </div>
+
+  <!-- Recent views -->
+  <div class="subsection">
+    <h3>B. Recent Views (last 2 hours)</h3>
+    <div class="formula">recent = SUM( videoViews &gt; 0 ? videoViews : impressions )
+         WHERE date ≥ recentStart
+           AND ad_id = &lt;this ad&gt;</div>
+  </div>
+
+  <!-- Baseline -->
+  <div class="subsection">
+    <h3>C. Baseline Rate (per hour, over the prior 6 hours)</h3>
+    <div class="formula">baselineTotal = SUM( videoViews &gt; 0 ? videoViews : impressions )
+                WHERE date ≥ baselineStart
+                  AND date  &lt;  recentStart
+                  AND ad_id = &lt;this ad&gt;
+
+baseline = baselineTotal ÷ 6.0    ← average views per hour in the baseline period</div>
+  </div>
+
+  <!-- Lift -->
+  <div class="subsection">
+    <h3>D. Lift Score (Virality Index)</h3>
+    <p>
+      Compares the <em>recent hourly rate</em> to the <em>baseline hourly rate</em>.
+      A lift of 1.0 means 100% above baseline (double the delivery).
+    </p>
+    <div class="formula">recentRate = recent ÷ 2.0        ← average views per hour during recent period
+
+lift = ( recentRate − baseline ) ÷ baseline
+     = 0   if baseline = 0</div>
+
+    <table>
+      <tr><th>Lift value</th><th>Meaning</th></tr>
+      <tr><td>0.0</td><td>Same delivery rate as baseline — no change</td></tr>
+      <tr><td>0.5</td><td>50% above baseline (1.5× the baseline rate)</td></tr>
+      <tr><td>1.0</td><td>100% above baseline (2× the baseline rate)</td></tr>
+      <tr><td><strong>&gt; 2.0</strong></td><td><strong>Spike alert triggered (3× the baseline rate)</strong></td></tr>
+      <tr><td>−0.5</td><td>50% below baseline — delivery slowing down</td></tr>
+    </table>
+
+    <div class="example">
+      <strong>Example:</strong> baseline = 500 views/hr · recent = 1,800 views over 2 hours<br>
+      recentRate = 1,800 ÷ 2 = 900/hr<br>
+      lift = (900 − 500) ÷ 500 = <strong>0.80 (+80% above baseline)</strong>
+    </div>
+  </div>
+
+  <!-- Engagement velocity -->
+  <div class="subsection">
+    <h3>E. Engagement Velocity</h3>
+    <div class="formula">engagementVel = SUM( likes + comments + shares + saves )
+                WHERE date ≥ recentStart
+                  AND ad_id = &lt;this ad&gt;</div>
+  </div>
+
+  <!-- Spike alert -->
+  <div class="subsection">
+    <h3>F. Spike Alert Threshold</h3>
+    <div class="formula">Spike alert = TRUE  if  lift &gt; 2.0
+
+Meaning: the ad's recent hourly rate is MORE than 3× its 6-hour baseline.
+"No spikes above +200%" is shown when no ad exceeds this threshold.</div>
+  </div>
+
+  <!-- Ranking -->
+  <div class="subsection">
+    <h3>G. Top Risers Ranking</h3>
+    <div class="formula">Sort all ads by lift (descending)
+Return TOP 5
+
+Displayed as: ad name, platform, lift%, engagementVelocity</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ SECTION 5: HEATMAP ═══════════════════════ -->
+<div class="section page-break">
+  <div class="section-header">
+    <div class="num">5</div>
+    <h2>Audience Activity Heatmap</h2>
+  </div>
+  <p>
+    A 24-column × N-platform grid showing at which hours each platform had the highest
+    delivery intensity. Darker = more activity.
+  </p>
+
+  <!-- Time window -->
+  <div class="subsection">
+    <h3>A. Time Window</h3>
+    <div class="formula">since = DateTime.UtcNow − 48 hours  (fixed; no anchor needed here)</div>
+  </div>
+
+  <!-- Hour extraction -->
+  <div class="subsection">
+    <h3>B. Hour-of-Day Extraction (BST)</h3>
+    <div class="formula">hour = ( record.Date + 6 hours ).Hour    ← integer 0–23 in BST (UTC+6)
+
+This makes column "11" on the heatmap = 11:00–11:59 BST local time.</div>
+  </div>
+
+  <!-- Cell value -->
+  <div class="subsection">
+    <h3>C. Cell Value (Intensity)</h3>
+    <div class="formula">For each  ( platform, hour )  group:
+
+  cellValue = AVERAGE(
+                impressions &gt; 0 ? impressions : engagement
+              )
+
+  where engagement = likes + comments + shares + saves
+
+Impressions are preferred because engagement is often 0 for paid ads
+even when they are actively delivering — impressions give a more
+meaningful heat signal.</div>
+    <div class="example">
+      <strong>Example — Google Ads, hour 11 (BST):</strong><br>
+      Rows in that bucket: [1,200], [980], [1,450], [1,100]<br>
+      cellValue = (1,200 + 980 + 1,450 + 1,100) ÷ 4 = <strong>1,182.5</strong><br>
+      This is normalised visually — the darkest cell on each row = highest average in that platform.
+    </div>
+  </div>
+
+  <!-- Output -->
+  <div class="subsection">
+    <h3>D. Output Structure</h3>
+    <div class="formula">Result: array of platforms, each with 24 values (one per hour 0–23)
+Missing hours (no data) → value = 0 → displayed as lightest shade</div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ SECTION 6: VIDEO INSIGHTS ═══════════════════════ -->
+<div class="section page-break">
+  <div class="section-header">
+    <div class="num">6</div>
+    <h2>Video Deep Insights</h2>
+  </div>
+  <p>
+    Shown for the selected ad in the dropdown. Reads the <strong>most recent</strong>
+    <code>ad_metrics</code> row for that ad (ordered by date descending).
+  </p>
+
+  <!-- Avg watch -->
+  <div class="subsection">
+    <h3>A. Avg Watch (seconds)</h3>
+    <div class="formula">avgWatchSeconds = ad_metrics.avg_watch_seconds
+                   (most recent row for this ad)
+
+For Facebook: sourced from video_avg_time_watched_actions in the Graph API.
+Displayed as seconds (e.g. "0s") or "Xm Ys" for values ≥ 60s.</div>
+  </div>
+
+  <!-- Completion -->
+  <div class="subsection">
+    <h3>B. Completion Rate</h3>
+    <div class="formula">views       = ad_metrics.video_views          (most recent row)
+completions = ad_metrics.video_completions    (most recent row)
+
+completion = completions ÷ views × 100%
+           = 0%  if views = 0</div>
+    <div class="example">
+      <strong>Example:</strong> views=5,000 · completions=1,200<br>
+      completion = 1,200 ÷ 5,000 × 100 = <strong>24.00%</strong>
+    </div>
+  </div>
+
+  <!-- Retention curve -->
+  <div class="subsection">
+    <h3>C. Retention Curve (0% → 100% of video)</h3>
+    <p>
+      The retention curve is modelled as a <strong>decile-decayed exponential</strong>.
+      It plots viewer retention at 11 equally spaced points (every 10% of video length).
+      The curve shape approximates typical video ad drop-off behaviour.
+    </p>
+    <div class="formula">For x = 0.0, 0.1, 0.2, … 1.0  (10 deciles):
+
+  retention(x) = MAX( 5,  e^(−x × 1.6) × 100 )
+
+  Floor of 5% ensures the curve never shows complete abandonment.</div>
+
+    <table>
+      <tr>
+        <th>Video position</th>
+        <th>x value</th>
+        <th>Formula</th>
+        <th>Retention %</th>
+      </tr>
+      <tr><td>0% (start)</td><td>0.0</td><td>e^(0) × 100</td><td><strong>100.00%</strong></td></tr>
+      <tr><td>10%</td><td>0.1</td><td>e^(−0.16) × 100</td><td>85.21%</td></tr>
+      <tr><td>20%</td><td>0.2</td><td>e^(−0.32) × 100</td><td>72.61%</td></tr>
+      <tr><td>30%</td><td>0.3</td><td>e^(−0.48) × 100</td><td>61.88%</td></tr>
+      <tr><td>40%</td><td>0.4</td><td>e^(−0.64) × 100</td><td>52.73%</td></tr>
+      <tr><td><strong>50%</strong></td><td><strong>0.5</strong></td><td><strong>e^(−0.80) × 100</strong></td><td><strong>44.93%</strong></td></tr>
+      <tr><td>60%</td><td>0.6</td><td>e^(−0.96) × 100</td><td>38.29%</td></tr>
+      <tr><td>70%</td><td>0.7</td><td>e^(−1.12) × 100</td><td>32.63%</td></tr>
+      <tr><td>80%</td><td>0.8</td><td>e^(−1.28) × 100</td><td>27.80%</td></tr>
+      <tr><td>90%</td><td>0.9</td><td>e^(−1.44) × 100</td><td>23.69%</td></tr>
+      <tr><td>100% (end)</td><td>1.0</td><td>e^(−1.60) × 100</td><td>20.19%</td></tr>
+    </table>
+    <div class="note">
+      <strong>Note on the 50% Retention figure (44.93%):</strong><br>
+      The dashboard displays the retention value at exactly the midpoint of the video (x = 0.5).
+      e^(−0.8) = 0.44933 → 44.93%. This value shown in the Video Deep Insights panel is
+      <strong>calculated</strong>, not fetched from Facebook — it is an approximation of typical
+      video ad retention. Real per-quartile data (p25/p50/p75/p100) would require Facebook's
+      <code>video_p25_watched_actions</code> fields which require additional API permissions.
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════ SUMMARY TABLE ═══════════════════════ -->
+<div class="section page-break">
+  <div class="section-header">
+    <div class="num">★</div>
+    <h2>Quick Reference — All Formulas</h2>
+  </div>
+  <table>
+    <tr>
+      <th>Metric</th>
+      <th>Formula</th>
+      <th>Data Source</th>
+    </tr>
+    <tr>
+      <td><span class="badge">KPI</span>Impressions (1H)</td>
+      <td>SUM(impressions) in [maxDate−1h, maxDate]</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge">KPI</span>Views (1H)</td>
+      <td>SUM(video_views) if &gt;0, else SUM(impressions)</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge">KPI</span>Engagement Rate</td>
+      <td>SUM(likes+comments+shares+saves) ÷ SUM(impressions) × 100%</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge">KPI</span>CTR</td>
+      <td>SUM(clicks) ÷ SUM(impressions) × 100%</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge">KPI</span>Followers Gained</td>
+      <td>SUM(followers_gained)</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge">KPI</span>Revenue (1H)</td>
+      <td>SUM(conversion_value)</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge">KPI</span>Delta Arrow</td>
+      <td>(current − previous) ÷ previous × 100%</td>
+      <td>computed</td>
+    </tr>
+    <tr>
+      <td><span class="badge" style="background:#dbeafe;color:#1e40af">TREND</span>Views chart</td>
+      <td>SUM(video_views &gt;0 ? video_views : impressions) per BST hour bucket</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge" style="background:#dbeafe;color:#1e40af">TREND</span>Engagement chart</td>
+      <td>SUM(likes+comments+shares+saves) per BST hour bucket</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge" style="background:#dbeafe;color:#1e40af">TREND</span>Watch time chart</td>
+      <td>SUM(video_views × avg_watch_seconds) per hour (total seconds)</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge" style="background:#dcfce7;color:#166534">POST</span>Views (1H)</td>
+      <td>SUM(video_views &gt;0 ? video_views : impressions) in last window, per ad</td>
+      <td>ad_metrics (ad_id ≠ null)</td>
+    </tr>
+    <tr>
+      <td><span class="badge" style="background:#dcfce7;color:#166534">POST</span>ER</td>
+      <td>SUM(eng) ÷ SUM(impressions) × 100%, per ad in last window</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge" style="background:#dcfce7;color:#166534">POST</span>Velocity %</td>
+      <td>(lastViews − prevViews) ÷ prevViews × 100%</td>
+      <td>computed</td>
+    </tr>
+    <tr>
+      <td><span class="badge" style="background:#dcfce7;color:#166534">POST</span>Virality</td>
+      <td>SUM(shares) ÷ SUM(impressions) × 100%, per ad in last window</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-amber">VIRAL</span>Lift score</td>
+      <td>(recent/2 − baseline) ÷ baseline; baseline = 6h avg/hr</td>
+      <td>computed</td>
+    </tr>
+    <tr>
+      <td><span class="badge badge-amber">VIRAL</span>Spike alert</td>
+      <td>lift &gt; 2.0 (recent rate is 3× the baseline rate)</td>
+      <td>computed</td>
+    </tr>
+    <tr>
+      <td><span class="badge" style="background:#fce7f3;color:#9d174d">HEAT</span>Heatmap cell</td>
+      <td>AVG(impressions &gt;0 ? impressions : engagement) per (platform, BST hour)</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge" style="background:#f3f4f6;color:#374151">VIDEO</span>Completion rate</td>
+      <td>video_completions ÷ video_views × 100%</td>
+      <td>ad_metrics</td>
+    </tr>
+    <tr>
+      <td><span class="badge" style="background:#f3f4f6;color:#374151">VIDEO</span>50% Retention</td>
+      <td>e^(−0.5 × 1.6) × 100 = 44.93% (exponential decay model)</td>
+      <td>model (approx.)</td>
+    </tr>
+  </table>
+</div>
+
+<footer>
+  AI-Marketer Platform OS v4.0 &nbsp;·&nbsp; Unified Hourly Analytics — Calculation Reference &nbsp;·&nbsp; Confidential
+</footer>
+
+</body>
+</html>
