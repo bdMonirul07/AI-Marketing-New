@@ -49,6 +49,18 @@ body.theme-red {
   --input-bg: #111111;
 }
 
+body.theme-windo {
+  --bg-color: #F3F3F3;
+  --bg-secondary: #FFFFFF;
+  --text-color: #1C1C1C;
+  --text-dim: #6B6B6B;
+  --text-inverse: #FFFFFF;
+  --border-color: #D4D4D4;
+  --accent-color: #0078D4;
+  --card-bg: #FFFFFF;
+  --input-bg: #FFFFFF;
+}
+
 /* Task 78: Super Admin Platinum Theme */
 body.theme-platinum {
   --bg-color: #0C0A15;
@@ -81,11 +93,11 @@ body.theme-platinum {
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  body.theme-light {
+  body.theme-light, body.theme-windo {
     color-scheme: light;
   }
 
-  body:not(.theme-light) {
+  body:not(.theme-light):not(.theme-windo) {
     color-scheme: dark;
   }
 
