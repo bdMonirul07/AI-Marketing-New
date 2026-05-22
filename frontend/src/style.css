@@ -107,72 +107,130 @@ body:not([class*="theme-"]) ::-webkit-scrollbar-thumb:hover {
 }
 
 body.theme-light {
-  --bg-color:     #F0F2F8;
+  --bg-color:     #F7F8FC;
   --bg-secondary: #FFFFFF;
-  --text-color:   #111827;
-  --text-dim:     #6B7280;
+  --text-color:   #1A1A1A;
+  --text-dim:     #555555;
   --text-inverse: #FFFFFF;
-  --border-color: #E5E7EB;
+  --border-color: #E4E6EF;
   --accent-color: #4F63D2;
   --card-bg:      #FFFFFF;
   --input-bg:     #FFFFFF;
 }
 
-/* ── LIGHT THEME — Modern SaaS Dashboard Style ── */
+/* ── LIGHT THEME — Simple & Gorgeous ── */
 
-/* App background */
-body.theme-light #app {
-  background: #F0F2F8 !important;
+/* Source Sans 3 font */
+@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+
+body.theme-light,
+body.theme-light * {
+  font-family: 'Source Sans 3', sans-serif !important;
 }
 
-/* Sidebar — white panel, subtle right border */
+/* App background */
+body.theme-light {
+  background: #F7F8FC !important;
+}
+
+body.theme-light #app {
+  background: #F7F8FC !important;
+}
+
+/* ── TEXT — black / near-black only, no black backgrounds ── */
+body.theme-light * {
+  color: #1A1A1A !important;
+}
+
+/* Muted / secondary text stays dark gray */
+body.theme-light [class*="text-gray-400"],
+body.theme-light [class*="text-gray-500"],
+body.theme-light [class*="text-gray-600"],
+body.theme-light [class*="text-dim"],
+body.theme-light p.text-xs,
+body.theme-light [class*="text-dim"] {
+  color: #555555 !important;
+}
+
+/* Accent text */
+body.theme-light [class*="text-cyan"],
+body.theme-light [class*="text-purple"],
+body.theme-light [class*="text-blue"],
+body.theme-light [class*="text-indigo"] {
+  color: #4F63D2 !important;
+}
+
+/* White text on colored/dark button backgrounds */
+body.theme-light [class*="bg-cyan-"],
+body.theme-light [class*="bg-blue-"],
+body.theme-light [class*="bg-indigo"],
+body.theme-light [class*="bg-amber-5"],
+body.theme-light [class*="bg-amber-6"],
+body.theme-light [class*="bg-emerald-6"],
+body.theme-light [class*="bg-rose-"],
+body.theme-light [class*="bg-red-"] {
+  color: #FFFFFF !important;
+}
+
+/* ── BACKGROUNDS — never black ── */
+body.theme-light [class*="bg-black"],
+body.theme-light [class*="bg-gray-900"],
+body.theme-light [class*="bg-gray-800"],
+body.theme-light [class*="bg-zinc-900"],
+body.theme-light [class*="bg-neutral-900"],
+body.theme-light [class*="bg-slate-900"] {
+  background-color: #F0F2F8 !important;
+  color: #1A1A1A !important;
+}
+
+/* Sidebar — white, clean */
 body.theme-light #sidebar {
   background: #FFFFFF !important;
-  border-right: 1px solid #E5E7EB !important;
-  box-shadow: 2px 0 8px rgba(0,0,0,0.05) !important;
+  border-right: 1px solid #E4E6EF !important;
+  box-shadow: 2px 0 12px rgba(0,0,0,0.05) !important;
 }
 
 body.theme-light #sidebar h1 {
   background: none !important;
   -webkit-background-clip: unset !important;
-  -webkit-text-fill-color: #4F63D2 !important;
-  color: #4F63D2 !important;
+  -webkit-text-fill-color: #1A1A1A !important;
+  color: #1A1A1A !important;
   font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.3px !important;
 }
 
 body.theme-light #sidebar > div:first-child p {
-  color: #9CA3AF !important;
+  color: #888888 !important;
   font-size: 10px !important;
-  letter-spacing: 0.08em !important;
+  letter-spacing: 0.06em !important;
 }
 
-/* Nav links — clean flat style */
+/* Nav links */
 body.theme-light #nav-links button,
 body.theme-light #nav-links a {
-  color: #374151 !important;
+  color: #333333 !important;
   background: transparent !important;
   border-radius: 8px !important;
-  font-size: 13px !important;
+  font-size: 14px !important;
   font-weight: 500 !important;
-  padding: 8px 12px !important;
-  margin-bottom: 2px !important;
-  transition: all 0.15s ease !important;
+  padding: 9px 12px !important;
   text-transform: none !important;
   letter-spacing: 0 !important;
 }
 
 body.theme-light #nav-links button:hover,
 body.theme-light #nav-links a:hover {
-  background: #F3F4F6 !important;
-  color: #4F63D2 !important;
+  background: #F0F2F8 !important;
+  color: #1A1A1A !important;
 }
 
-/* Active nav item — indigo pill */
+/* Active nav */
 body.theme-light #nav-links [class*="bg-cyan"],
 body.theme-light #nav-links [class*="bg-amber"],
 body.theme-light #nav-links [class*="bg-emerald"],
 body.theme-light #nav-links [class*="bg-[var(--accent"] {
-  background: #EEF2FF !important;
+  background: #ECEFFE !important;
   color: #4F63D2 !important;
   font-weight: 600 !important;
   border-radius: 8px !important;
@@ -181,26 +239,28 @@ body.theme-light #nav-links [class*="bg-[var(--accent"] {
 /* Header */
 body.theme-light header {
   background: #FFFFFF !important;
-  border-bottom: 1px solid #E5E7EB !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+  border-bottom: 1px solid #E4E6EF !important;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.06) !important;
 }
 
 body.theme-light #current-page-name {
-  color: #111827 !important;
+  color: #1A1A1A !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.2px !important;
 }
 
-/* Content container */
+/* Content area */
 body.theme-light #content-container {
-  background: #F0F2F8 !important;
+  background: #F7F8FC !important;
 }
 
-/* Cards — white with soft shadow */
+/* Cards */
 body.theme-light .bg-\[var\(--card-bg\)\],
 body.theme-light [class*="bg-[var(--card-bg"] {
   background: #FFFFFF !important;
-  border: 1px solid #E5E7EB !important;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
-  border-radius: 12px !important;
+  border: 1px solid #E4E6EF !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05), 0 0 1px rgba(0,0,0,0.04) !important;
+  border-radius: 14px !important;
 }
 
 /* Inputs */
@@ -209,75 +269,57 @@ body.theme-light select,
 body.theme-light textarea {
   background: #FFFFFF !important;
   border: 1px solid #D1D5DB !important;
-  color: #111827 !important;
+  color: #1A1A1A !important;
   border-radius: 8px !important;
+  font-size: 14px !important;
+}
+
+body.theme-light input::placeholder,
+body.theme-light textarea::placeholder {
+  color: #AAAAAA !important;
 }
 
 body.theme-light input:focus,
 body.theme-light select:focus,
 body.theme-light textarea:focus {
   border-color: #4F63D2 !important;
-  box-shadow: 0 0 0 3px rgba(79,99,210,0.15) !important;
+  box-shadow: 0 0 0 3px rgba(79,99,210,0.12) !important;
   outline: none !important;
 }
 
 /* Buttons */
 body.theme-light button {
   border-radius: 8px !important;
-}
-
-/* Accent-colored elements → indigo */
-body.theme-light [class*="text-cyan"],
-body.theme-light [class*="text-purple"] {
-  color: #4F63D2 !important;
-}
-
-/* Text colors */
-body.theme-light [class*="text-gray-400"],
-body.theme-light [class*="text-gray-500"] {
-  color: #9CA3AF !important;
-}
-
-body.theme-light [class*="text-gray-300"] {
-  color: #D1D5DB !important;
+  font-weight: 500 !important;
+  font-size: 13px !important;
 }
 
 /* Borders */
 body.theme-light [class*="border-white/5"],
 body.theme-light [class*="border-white/10"],
 body.theme-light [class*="border-white/20"] {
-  border-color: #E5E7EB !important;
+  border-color: #E4E6EF !important;
 }
 
 /* Tables */
 body.theme-light table th {
-  background: #F9FAFB !important;
-  color: #6B7280 !important;
+  background: #F7F8FC !important;
+  color: #555555 !important;
   font-size: 11px !important;
+  font-weight: 600 !important;
   text-transform: uppercase !important;
-  letter-spacing: 0.05em !important;
+  letter-spacing: 0.06em !important;
 }
 
 body.theme-light table tr:hover {
-  background: #F5F7FF !important;
+  background: #F4F5FC !important;
 }
 
-/* Force all text black in light theme */
-body.theme-light * {
-  color: #000000 !important;
-}
-
-/* Restore white text on dark/colored backgrounds */
-body.theme-light button[class*="bg-[#"],
-body.theme-light [class*="bg-indigo"],
-body.theme-light [class*="bg-blue-6"],
-body.theme-light [class*="bg-blue-7"],
-body.theme-light [class*="bg-blue-8"],
-body.theme-light [class*="bg-blue-9"],
-body.theme-light [class*="bg-4F63D2"],
-body.theme-light [style*="background:#4F"],
-body.theme-light .bg-\[var\(--accent-color\)\] {
-  color: #FFFFFF !important;
+/* Gradients → flat white */
+body.theme-light [class*="bg-gradient"] {
+  background-image: none !important;
+  background-color: #FFFFFF !important;
+  color: #1A1A1A !important;
 }
 
 body.theme-blue {
