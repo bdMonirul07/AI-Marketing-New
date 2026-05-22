@@ -1657,8 +1657,18 @@ async function renderStudioScreen() {
     // Show campaign creatives first (grouped by platform), then file assets
     const allVariations = [...campaignCreatives, ...fileAssets]
 
-    const dispatchedIds = new Set((state.marketingData.ppcQueue || []).map(item => item.id))
-    const undispatchedVariations = allVariations.filter(v => !dispatchedIds.has(v.id))
+    const dispatchedIds = new Set()
+    const dispatchedUrls = new Set()
+    ;(state.marketingData.ppcQueue || []).forEach(item => {
+      if (item.id) {
+        dispatchedIds.add(item.id)
+        dispatchedIds.add(item.id.split('/').pop())
+      }
+      if (item.url) dispatchedUrls.add(item.url)
+    })
+    const undispatchedVariations = allVariations.filter(v =>
+      !dispatchedIds.has(v.id) && !dispatchedUrls.has(v.url)
+    )
 
     const platformColors = { facebook: 'blue', tiktok: 'pink', youtube: 'red', google: 'green' }
     const platformIcons = { facebook: '📘', tiktok: '🎵', youtube: '▶️', google: '🔍' }
