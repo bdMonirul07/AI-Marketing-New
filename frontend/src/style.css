@@ -109,7 +109,7 @@ body:not([class*="theme-"]) ::-webkit-scrollbar-thumb:hover {
 body.theme-light {
   --bg-color:     #F7F8FC;
   --bg-secondary: #FFFFFF;
-  --text-color:   #1A1A1A;
+  --text-color:   #2C3947;
   --text-dim:     #555555;
   --text-inverse: #FFFFFF;
   --border-color: #E4E6EF;
@@ -139,7 +139,7 @@ body.theme-light #app {
 
 /* ── TEXT — black / near-black only, no black backgrounds ── */
 body.theme-light * {
-  color: #1A1A1A !important;
+  color: #2C3947 !important;
 }
 
 /* Muted / secondary text stays dark gray */
@@ -180,7 +180,7 @@ body.theme-light [class*="bg-zinc-900"],
 body.theme-light [class*="bg-neutral-900"],
 body.theme-light [class*="bg-slate-900"] {
   background-color: #F0F2F8 !important;
-  color: #1A1A1A !important;
+  color: #2C3947 !important;
 }
 
 /* Sidebar — white, clean */
@@ -193,8 +193,8 @@ body.theme-light #sidebar {
 body.theme-light #sidebar h1 {
   background: none !important;
   -webkit-background-clip: unset !important;
-  -webkit-text-fill-color: #1A1A1A !important;
-  color: #1A1A1A !important;
+  -webkit-text-fill-color: #2C3947 !important;
+  color: #2C3947 !important;
   font-size: 18px !important;
   font-weight: 700 !important;
   letter-spacing: -0.3px !important;
@@ -222,7 +222,7 @@ body.theme-light #nav-links a {
 body.theme-light #nav-links button:hover,
 body.theme-light #nav-links a:hover {
   background: #F0F2F8 !important;
-  color: #1A1A1A !important;
+  color: #2C3947 !important;
 }
 
 /* Active nav */
@@ -244,7 +244,7 @@ body.theme-light header {
 }
 
 body.theme-light #current-page-name {
-  color: #1A1A1A !important;
+  color: #2C3947 !important;
   font-weight: 700 !important;
   letter-spacing: -0.2px !important;
 }
@@ -269,7 +269,7 @@ body.theme-light select,
 body.theme-light textarea {
   background: #FFFFFF !important;
   border: 1px solid #D1D5DB !important;
-  color: #1A1A1A !important;
+  color: #2C3947 !important;
   border-radius: 8px !important;
   font-size: 14px !important;
 }
@@ -319,7 +319,7 @@ body.theme-light table tr:hover {
 body.theme-light [class*="bg-gradient"] {
   background-image: none !important;
   background-color: #FFFFFF !important;
-  color: #1A1A1A !important;
+  color: #2C3947 !important;
 }
 
 body.theme-blue {
