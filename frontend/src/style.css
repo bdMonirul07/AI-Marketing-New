@@ -262,6 +262,24 @@ body.theme-light table tr:hover {
   background: #F5F7FF !important;
 }
 
+/* Force all text black in light theme */
+body.theme-light * {
+  color: #000000 !important;
+}
+
+/* Restore white text on dark/colored backgrounds */
+body.theme-light button[class*="bg-[#"],
+body.theme-light [class*="bg-indigo"],
+body.theme-light [class*="bg-blue-6"],
+body.theme-light [class*="bg-blue-7"],
+body.theme-light [class*="bg-blue-8"],
+body.theme-light [class*="bg-blue-9"],
+body.theme-light [class*="bg-4F63D2"],
+body.theme-light [style*="background:#4F"],
+body.theme-light .bg-\[var\(--accent-color\)\] {
+  color: #FFFFFF !important;
+}
+
 body.theme-blue {
   --bg-color: #0F172A;
   --bg-secondary: #1E293B;
