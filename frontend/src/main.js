@@ -320,7 +320,7 @@ const themeButtons = {
   dark: document.getElementById('theme-dark'),
   light: document.getElementById('theme-light'),
   blue: document.getElementById('theme-blue'),
-  red: document.getElementById('theme-red'),
+  glass: document.getElementById('theme-glass'),
   windo: document.getElementById('theme-windo')
 }
 
@@ -348,7 +348,7 @@ function checkCompanyContext() {
 }
 
 function setTheme(theme) {
-  document.body.classList.remove('theme-light', 'theme-blue', 'theme-red', 'theme-windo')
+  document.body.classList.remove('theme-light', 'theme-blue', 'theme-glass', 'theme-windo')
   if (theme !== 'dark') {
     document.body.classList.add(`theme-${theme}`)
   }

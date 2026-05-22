@@ -181,17 +181,167 @@ body.theme-blue {
   --input-bg: #0F172A;
 }
 
-body.theme-red {
-  --bg-color: #991b1b;
-  --bg-secondary: #000000;
-  --text-color: #FFFFFF;
-  --text-dim: #fca5a5;
-  --text-inverse: #FFFFFF;
-  --border-color: #7f1d1d;
+/* ── GLASSMORPHISM THEME ── */
+body.theme-glass {
+  --bg-color:     #2B7A8A;
+  --bg-secondary: rgba(255,255,255,0.08);
+  --text-color:   #FFFFFF;
+  --text-dim:     rgba(255,255,255,0.65);
+  --text-inverse: #1A5A6A;
+  --border-color: rgba(255,255,255,0.20);
   --accent-color: #FFFFFF;
-  --card-bg: #000000;
-  --input-bg: #111111;
+  --card-bg:      rgba(255,255,255,0.12);
+  --input-bg:     rgba(255,255,255,0.15);
 }
+
+/* Gradient background on the whole page */
+body.theme-glass {
+  background: linear-gradient(135deg, #56909E 0%, #2E6E7E 35%, #1B5C55 70%, #144D4A 100%) fixed !important;
+  min-height: 100vh;
+}
+
+body.theme-glass #app {
+  background: transparent !important;
+}
+
+/* Sidebar — frosted glass */
+body.theme-glass #sidebar {
+  background: rgba(255,255,255,0.10) !important;
+  backdrop-filter: blur(24px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(160%) !important;
+  border-right: 1px solid rgba(255,255,255,0.18) !important;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.12) !important;
+}
+
+body.theme-glass #sidebar h1 {
+  background: none !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  color: #FFFFFF !important;
+}
+
+body.theme-glass #sidebar > div:first-child p {
+  color: rgba(255,255,255,0.55) !important;
+}
+
+/* Nav items */
+body.theme-glass #nav-links button,
+body.theme-glass #nav-links a {
+  color: rgba(255,255,255,0.80) !important;
+  background: transparent !important;
+  border-radius: 10px !important;
+}
+
+body.theme-glass #nav-links button:hover,
+body.theme-glass #nav-links a:hover {
+  background: rgba(255,255,255,0.12) !important;
+  color: #FFFFFF !important;
+}
+
+/* Active nav — glass pill */
+body.theme-glass #nav-links [class*="bg-cyan"],
+body.theme-glass #nav-links [class*="bg-amber"],
+body.theme-glass #nav-links [class*="bg-emerald"],
+body.theme-glass #nav-links [class*="bg-[var(--accent"] {
+  background: rgba(255,255,255,0.20) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255,255,255,0.30) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* Header */
+body.theme-glass header {
+  background: rgba(255,255,255,0.08) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.15) !important;
+}
+
+/* Content area — transparent so gradient shows */
+body.theme-glass #content-container {
+  background: transparent !important;
+}
+
+/* Cards — frosted glass panels */
+body.theme-glass .bg-\[var\(--card-bg\)\],
+body.theme-glass [class*="bg-[var(--card-bg"] {
+  background: rgba(255,255,255,0.12) !important;
+  backdrop-filter: blur(16px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(150%) !important;
+  border: 1px solid rgba(255,255,255,0.20) !important;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.25) !important;
+  border-radius: 16px !important;
+}
+
+/* Buttons */
+body.theme-glass button {
+  background: rgba(255,255,255,0.15) !important;
+  border: 1px solid rgba(255,255,255,0.25) !important;
+  color: #FFFFFF !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border-radius: 10px !important;
+}
+
+body.theme-glass button:hover {
+  background: rgba(255,255,255,0.25) !important;
+  border-color: rgba(255,255,255,0.40) !important;
+}
+
+/* Inputs */
+body.theme-glass input,
+body.theme-glass select,
+body.theme-glass textarea {
+  background: rgba(255,255,255,0.15) !important;
+  border: 1px solid rgba(255,255,255,0.25) !important;
+  color: #FFFFFF !important;
+  border-radius: 10px !important;
+}
+
+body.theme-glass input::placeholder {
+  color: rgba(255,255,255,0.45) !important;
+}
+
+/* Borders */
+body.theme-glass [class*="border-"] {
+  border-color: rgba(255,255,255,0.18) !important;
+}
+
+/* Colored text → white */
+body.theme-glass [class*="text-cyan"],
+body.theme-glass [class*="text-purple"],
+body.theme-glass [class*="text-amber"],
+body.theme-glass [class*="text-emerald"],
+body.theme-glass [class*="text-rose"],
+body.theme-glass [class*="text-blue"],
+body.theme-glass [class*="text-gray-400"],
+body.theme-glass [class*="text-gray-500"] {
+  color: rgba(255,255,255,0.75) !important;
+}
+
+/* Colored bg chips → frosted */
+body.theme-glass [class*="bg-cyan"],
+body.theme-glass [class*="bg-purple"],
+body.theme-glass [class*="bg-amber"],
+body.theme-glass [class*="bg-emerald"],
+body.theme-glass [class*="bg-rose"],
+body.theme-glass [class*="bg-blue"],
+body.theme-glass [class*="bg-gray"] {
+  background: rgba(255,255,255,0.15) !important;
+  color: #FFFFFF !important;
+}
+
+/* Flatten gradients to transparent */
+body.theme-glass [class*="bg-gradient"] {
+  background-image: none !important;
+  background-color: rgba(255,255,255,0.10) !important;
+}
+
+/* Scrollbar — minimal glass */
+body.theme-glass ::-webkit-scrollbar { width: 6px; }
+body.theme-glass ::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); }
+body.theme-glass ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.25); border-radius: 10px; }
+body.theme-glass ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.40); }
 
 /* ── WINDO THEME — Windows Classic Wizard Style ── */
 body.theme-windo {
@@ -447,6 +597,10 @@ body.theme-platinum {
   }
 
   body:not(.theme-light):not(.theme-windo) {
+    color-scheme: dark;
+  }
+
+  body.theme-glass {
     color-scheme: dark;
   }
 
