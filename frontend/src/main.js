@@ -1672,9 +1672,6 @@ async function renderStudioScreen() {
                   <button id="dispatch-ppp-btn" class="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-lg transition-all uppercase tracking-widest text-xs">
                       Dispatch to PPP Queue ➡️
                   </button>
-                  <button id="approval-btn" class="px-6 py-2.5 bg-cyan-600 text-white font-bold rounded-lg animate-pulse hover:animate-none hover:shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all uppercase tracking-widest text-xs">
-                      Approve & Send to CMO
-                  </button>
               </div>
           </div>
 
@@ -1855,18 +1852,6 @@ async function renderStudioScreen() {
       }
     }
 
-    document.getElementById('approval-btn').onclick = () => {
-      if (locallyApproved.length === 0) {
-        showNotification('Please approve at least one variation before final submission.', 'error')
-        return
-      }
-
-      // Transfer to CMO dashboard queue
-      state.marketingData.cmoQueue = [...state.marketingData.cmoQueue, ...locallyApproved]
-      saveCmoQueue() // Persist to server
-      showNotification(`SUCCESS: ${locallyApproved.length} asset(s) dispatched to Business Admin for final review.`)
-      switchScreen('Monitoring')
-    }
   } catch (error) {
     console.error('Error rendering studio:', error)
     contentContainer.innerHTML = `<div class="p-8 text-center text-rose-500 font-bold">Error loading assets: ${error.message}</div>`
