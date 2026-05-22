@@ -110,8 +110,8 @@ body.theme-light {
   --bg-color:     #F7F8FC;
   --bg-secondary: #FFFFFF;
   --text-color:   #2C3947;
-  --text-dim:     #555555;
-  --text-inverse: #FFFFFF;
+  --text-dim:     #2C3947;
+  --text-inverse: #2C3947;
   --border-color: #E4E6EF;
   --accent-color: #4F63D2;
   --card-bg:      #FFFFFF;
@@ -137,22 +137,25 @@ body.theme-light #app {
   background: #F7F8FC !important;
 }
 
-/* ── TEXT — black / near-black only, no black backgrounds ── */
-body.theme-light * {
+/* ── TEXT — ALL text/numbers = #2C3947, never white ── */
+body.theme-light *,
+body.theme-light *::before,
+body.theme-light *::after {
   color: #2C3947 !important;
 }
 
-/* Muted / secondary text stays dark gray */
-body.theme-light [class*="text-gray-400"],
-body.theme-light [class*="text-gray-500"],
-body.theme-light [class*="text-gray-600"],
-body.theme-light [class*="text-dim"],
-body.theme-light p.text-xs,
-body.theme-light [class*="text-dim"] {
-  color: #555555 !important;
+/* Explicitly override every white-text utility that Tailwind emits */
+body.theme-light .text-white,
+body.theme-light [class*="text-white"],
+body.theme-light [class*="text-slate-50"],
+body.theme-light [class*="text-gray-50"],
+body.theme-light [class*="text-gray-100"],
+body.theme-light [class*="text-gray-200"],
+body.theme-light [class*="text-gray-300"] {
+  color: #2C3947 !important;
 }
 
-/* Accent text */
+/* Accent / colored text → keep readable dark versions */
 body.theme-light [class*="text-cyan"],
 body.theme-light [class*="text-purple"],
 body.theme-light [class*="text-blue"],
@@ -160,16 +163,28 @@ body.theme-light [class*="text-indigo"] {
   color: #4F63D2 !important;
 }
 
-/* White text on colored/dark button backgrounds */
-body.theme-light [class*="bg-cyan-"],
-body.theme-light [class*="bg-blue-"],
-body.theme-light [class*="bg-indigo"],
-body.theme-light [class*="bg-amber-5"],
-body.theme-light [class*="bg-amber-6"],
-body.theme-light [class*="bg-emerald-6"],
-body.theme-light [class*="bg-rose-"],
-body.theme-light [class*="bg-red-"] {
-  color: #FFFFFF !important;
+body.theme-light [class*="text-gray-400"],
+body.theme-light [class*="text-gray-500"],
+body.theme-light [class*="text-gray-600"],
+body.theme-light [class*="text-dim"] {
+  color: #4A5568 !important;
+}
+
+/* Form elements — force text color so fields aren't invisible */
+body.theme-light input,
+body.theme-light input::placeholder,
+body.theme-light select,
+body.theme-light option,
+body.theme-light textarea,
+body.theme-light textarea::placeholder,
+body.theme-light label {
+  color: #2C3947 !important;
+}
+
+body.theme-light input::placeholder,
+body.theme-light textarea::placeholder {
+  color: #9AA5B4 !important;
+  opacity: 1 !important;
 }
 
 /* ── BACKGROUNDS — never black ── */
