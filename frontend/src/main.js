@@ -6715,7 +6715,7 @@ roleSwitcherBtn.onclick = (e) => {
   toggleDropdown()
 }
 
-document.getElementById('logout-btn')?.addEventListener('click', (e) => {
+document.getElementById('dropdown-logout-btn')?.addEventListener('click', (e) => {
   e.stopPropagation()
   roleDropdown.classList.add('hidden')
   handleLogout()
