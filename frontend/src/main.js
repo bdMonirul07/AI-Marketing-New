@@ -641,18 +641,12 @@ function updateUI() {
 
   // Update Nav Links
   navLinks.innerHTML = currentScreens.map(screen => {
-    const isApprovals = screen.id === 'Approvals'
-    const queueCount = state.marketingData.cmoQueue.length
-
     return `
       <button class="nav-btn w-full flex items-center justify-between p-3 rounded-xl transition-all ${state.activeScreen === screen.id ? `bg-${themeColor}-500/20 text-${themeColor}-400 border border-${themeColor}-500/30 font-bold` : 'text-gray-400 hover:text-white hover:bg-gray-800/50'}" data-screen="${screen.id}">
         <div class="flex items-center space-x-3">
           <span class="text-lg">${screen.icon}</span>
           <span class="text-sm">${screen.label}</span>
         </div>
-        ${isApprovals && queueCount > 0 ? `
-          <span class="bg-amber-500 text-black text-[9px] font-black px-1.5 py-0.5 rounded-full animate-pulse">${queueCount}</span>
-        ` : ''}
       </button>
     `
   }).join('')
@@ -1615,6 +1609,10 @@ async function renderStudioScreen() {
   `
 
   try {
+    // Refresh PPP queue from server so rejected items are no longer hidden
+    const ppcRes = await apiFetch('/ppp/queue')
+    if (ppcRes.ok) state.marketingData.ppcQueue = await ppcRes.json()
+
     const response = await apiFetch('/assets')
     const assets = await response.json()
 
@@ -1660,6 +1658,9 @@ async function renderStudioScreen() {
     // Show campaign creatives first (grouped by platform), then file assets
     const allVariations = [...campaignCreatives, ...fileAssets]
 
+    const dispatchedIds = new Set((state.marketingData.ppcQueue || []).map(item => item.id))
+    const undispatchedVariations = allVariations.filter(v => !dispatchedIds.has(v.id))
+
     const platformColors = { facebook: 'blue', tiktok: 'pink', youtube: 'red', google: 'green' }
     const platformIcons = { facebook: '📘', tiktok: '🎵', youtube: '▶️', google: '🔍' }
 
@@ -1702,7 +1703,7 @@ async function renderStudioScreen() {
           </div>` : ''}
 
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              ${allVariations.map(v => {
+              ${undispatchedVariations.map(v => {
                 const platColor = platformColors[v.platform] || 'gray'
                 return `
                   <div class="group bg-[var(--card-bg)] border border-[var(--border-color)] rounded-xl overflow-hidden hover:border-cyan-500/50 transition-all flex flex-col" data-id="${v.id}">
@@ -1743,7 +1744,7 @@ async function renderStudioScreen() {
                       </div>
                   </div>`
               }).join('')}
-              ${allVariations.length === 0 ? '<p class="col-span-full text-center text-gray-500 py-12">No assets found. Go to Creative Config and configure platforms to generate assets.</p>' : ''}
+              ${undispatchedVariations.length === 0 ? '<p class="col-span-full text-center text-gray-500 py-12">No assets found. Go to Creative Config and configure platforms to generate assets.</p>' : ''}
           </div>
       </div>
     `
@@ -1784,7 +1785,7 @@ async function renderStudioScreen() {
 
     document.querySelectorAll('.studio-delete-btn').forEach((btn, index) => {
       btn.onclick = async () => {
-        const asset = allVariations[index]
+        const asset = undispatchedVariations[index]
         const card = btn.closest('.group')
         try {
           if (!asset.platform) {
@@ -1802,7 +1803,7 @@ async function renderStudioScreen() {
 
     document.querySelectorAll('.studio-approve-btn').forEach((btn, index) => {
       btn.onclick = () => {
-        const asset = allVariations[index]
+        const asset = undispatchedVariations[index]
         const card = btn.closest('.group')
         const deleteBtn = card.querySelector('.studio-delete-btn')
         locallyApproved.push(asset)
@@ -6221,7 +6222,6 @@ async function renderRedesignedApprovalsScreen() {
 
     if (!state.marketingData.selectedPppItems) state.marketingData.selectedPppItems = []
 
-    const cmoQueue = state.marketingData.cmoQueue || []
     const platColors = { facebook:'indigo', tiktok:'pink', youtube:'rose', google_ads:'amber', instagram:'purple', twitter:'sky' }
     const platEmojis = { facebook:'📘', tiktok:'🎵', youtube:'▶️', google_ads:'🔍', instagram:'📸', twitter:'🐦' }
 
@@ -6229,40 +6229,6 @@ async function renderRedesignedApprovalsScreen() {
       <div class="space-y-8">
         <div class="flex items-center justify-between">
           <h2 class="text-2xl font-black tracking-tight uppercase">Ad Approvals</h2>
-          <div class="flex gap-2">
-            ${cmoQueue.length > 0 ? `<span class="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-xs font-bold">Expert Submissions (${cmoQueue.length})</span>` : ''}
-            <span class="px-4 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-lg text-xs font-bold">PPP Submissions (${pppSubmissions.length})</span>
-          </div>
-        </div>
-
-        <!-- Expert Creative Submissions (from Creative Studio) -->
-        <div class="space-y-3">
-          <h3 class="text-[10px] font-black text-amber-500 uppercase tracking-widest border-b border-amber-500/20 pb-2">📥 Expert Creative Submissions — Awaiting CMO Review</h3>
-          <div id="cmo-queue-list" class="space-y-3">
-            ${cmoQueue.length === 0 ? `
-              <div class="bg-[var(--card-bg)] border border-dashed border-[var(--border-color)] p-10 rounded-2xl flex flex-col items-center justify-center text-center space-y-2">
-                <span class="text-4xl opacity-20">📥</span>
-                <p class="text-gray-500 text-sm font-bold">No creative submissions yet.<br><span class="text-xs font-medium opacity-50 uppercase tracking-tighter">Expert sends assets here from Creative Studio.</span></p>
-              </div>
-            ` : cmoQueue.map((asset, i) => `
-              <div class="bg-[var(--card-bg)] p-4 rounded-2xl border border-amber-500/20 flex items-center gap-5 hover:border-amber-500/50 transition-all">
-                <div class="w-20 h-20 bg-black rounded-xl overflow-hidden shadow-2xl flex-shrink-0">
-                  ${asset.type === 'video'
-                    ? `<video src="${asset.url || ''}" class="w-full h-full object-cover"></video>`
-                    : `<img src="${asset.url || ''}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<div class=\\'w-full h-full flex items-center justify-center text-gray-600 text-xs\\'>No Image</div>'">`}
-                </div>
-                <div class="flex-1 min-w-0">
-                  <h4 class="font-black text-white truncate">${asset.title || asset.id}</h4>
-                  <p class="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">Type: ${asset.type || 'image'} · ID: ${String(asset.id || '').slice(0, 10)}...</p>
-                  <span class="inline-block mt-1 px-2 py-0.5 bg-amber-600/20 text-amber-400 border border-amber-500/30 rounded text-[9px] font-black uppercase">Awaiting CMO Approval</span>
-                </div>
-                <div class="flex gap-2 flex-shrink-0">
-                  <button class="cmo-expert-reject px-4 py-2 bg-transparent hover:bg-red-900/30 text-gray-500 hover:text-red-400 border border-[var(--border-color)] hover:border-red-500/40 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all" data-index="${i}">Reject</button>
-                  <button class="cmo-expert-approve px-5 py-2 bg-amber-500 hover:bg-amber-400 text-black border border-amber-500 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all" data-index="${i}">Approve → PPP</button>
-                </div>
-              </div>
-            `).join('')}
-          </div>
         </div>
 
         <!-- PPP Budget Submissions -->
@@ -6305,9 +6271,14 @@ async function renderRedesignedApprovalsScreen() {
                       </div>
                     ` : `<div class="mt-2 text-[10px] text-yellow-600 italic">No budget configured</div>`}
                   </div>
-                  <button class="ppp-toggle-select flex-shrink-0 px-5 py-2.5 ${isSelected ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500' : 'bg-[var(--bg-color)] hover:bg-emerald-600/10 text-gray-400 hover:text-emerald-400 border-[var(--border-color)] hover:border-emerald-500/50'} border rounded-xl font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer" data-numeric-id="${item.numericId}" data-index="${i}">
-                    ${isSelected ? 'SELECTED ✓' : 'SELECT'}
-                  </button>
+                  <div class="flex flex-col gap-2 flex-shrink-0">
+                    <button class="ppp-toggle-select px-5 py-2.5 ${isSelected ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500' : 'bg-[var(--bg-color)] hover:bg-emerald-600/10 text-gray-400 hover:text-emerald-400 border-[var(--border-color)] hover:border-emerald-500/50'} border rounded-xl font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer" data-numeric-id="${item.numericId}" data-index="${i}">
+                      ${isSelected ? 'SELECTED ✓' : 'SELECT'}
+                    </button>
+                    <button class="ppp-reject-btn px-5 py-2.5 bg-transparent hover:bg-red-900/30 text-gray-500 hover:text-red-400 border border-[var(--border-color)] hover:border-red-500/40 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer" data-numeric-id="${item.numericId}">
+                      REJECT
+                    </button>
+                  </div>
                 </div>
               </div>
             `
@@ -6331,38 +6302,6 @@ async function renderRedesignedApprovalsScreen() {
       </div>
     `
 
-    // Expert approve/reject handlers
-    document.querySelectorAll('.cmo-expert-approve').forEach(btn => {
-      btn.onclick = async () => {
-        const idx = parseInt(btn.dataset.index)
-        const asset = cmoQueue[idx]
-        // Move to PPP queue via backend
-        try {
-          await apiFetch('/ppp/queue', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify([{ ...asset, status: 'awaiting_budget' }])
-          })
-        } catch(e) { /* non-fatal — still remove from CMO queue */ }
-        state.marketingData.cmoQueue.splice(idx, 1)
-        await saveCmoQueue()
-        updateUI()
-        renderRedesignedApprovalsScreen()
-        showNotification('Asset approved and sent to PPP queue.', 'success')
-      }
-    })
-
-    document.querySelectorAll('.cmo-expert-reject').forEach(btn => {
-      btn.onclick = async () => {
-        const idx = parseInt(btn.dataset.index)
-        state.marketingData.cmoQueue.splice(idx, 1)
-        await saveCmoQueue()
-        updateUI()
-        renderRedesignedApprovalsScreen()
-        showNotification('Asset rejected and removed from queue.', 'attention')
-      }
-    })
-
     // PPP item select/deselect
     document.querySelectorAll('.ppp-toggle-select').forEach(btn => {
       btn.onclick = () => {
@@ -6382,6 +6321,37 @@ async function renderRedesignedApprovalsScreen() {
         btn.classList.toggle('bg-emerald-500/10', idx === -1)
         btn.classList.toggle('text-emerald-400', idx === -1)
         btn.classList.toggle('border-emerald-500', idx === -1)
+      }
+    })
+
+    // Reject PPP submission handler
+    document.querySelectorAll('.ppp-reject-btn').forEach(btn => {
+      btn.onclick = async () => {
+        const numericId = parseInt(btn.dataset.numericId)
+        btn.textContent = 'Rejecting...'
+        btn.disabled = true
+        try {
+          const res = await apiFetch(`/ppp/queue/${numericId}/reject`, { method: 'POST' })
+          if (res.ok) {
+            const card = btn.closest('.bg-\\[var\\(--card-bg\\)\\]') || btn.closest('[class*="bg-"]')
+            if (card) { card.classList.add('opacity-0', 'scale-95'); setTimeout(() => card.remove(), 300) }
+            showNotification('Submission rejected. Asset returned to Creative Studio.', 'attention')
+            // Remove from ppcQueue state so Creative Studio shows it again
+            state.marketingData.ppcQueue = (state.marketingData.ppcQueue || []).filter(q => q.numericId !== numericId)
+            // Remove from selected list if it was selected
+            const sel = state.marketingData.selectedPppItems
+            const idx = sel.indexOf(numericId)
+            if (idx > -1) sel.splice(idx, 1)
+          } else {
+            showNotification('Failed to reject. Try again.', 'error')
+            btn.textContent = 'REJECT'
+            btn.disabled = false
+          }
+        } catch (e) {
+          showNotification('Network error.', 'error')
+          btn.textContent = 'REJECT'
+          btn.disabled = false
+        }
       }
     })
 

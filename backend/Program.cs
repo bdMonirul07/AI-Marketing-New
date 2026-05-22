@@ -1853,7 +1853,7 @@ app.MapPost("/api/cmo/queue", async (AppDbContext db, HttpContext ctx, HttpReque
 app.MapGet("/api/ppp/queue", async (AppDbContext db, HttpContext ctx) =>
 {
     var companyId = ctx.GetCompanyId();
-    var query = db.PppQueue.AsQueryable();
+    var query = db.PppQueue.Where(q => q.Status != "rejected").AsQueryable();
     if (companyId.HasValue) query = query.Where(q => q.CompanyId == companyId);
     var items = await query.OrderBy(q => q.QueueIndex).ToListAsync();
     // Load budgets for all items
@@ -1920,6 +1920,8 @@ app.MapPost("/api/ppp/queue", async (AppDbContext db, HttpContext ctx, HttpReque
             existing2.Title      = title ?? existing2.Title;
             existing2.Platform   = platform ?? existing2.Platform;
             existing2.QueueIndex = queueIdx;
+            // Re-enter the flow if previously rejected
+            if (existing2.Status == "rejected") existing2.Status = "received";
         }
         else
         {
@@ -1998,6 +2000,7 @@ app.MapPost("/api/ppc/queue", async (AppDbContext db, HttpContext ctx, HttpReque
             exist2.Title      = title2 ?? exist2.Title;
             exist2.Platform   = platform2 ?? exist2.Platform;
             exist2.QueueIndex = queueIdx2;
+            if (exist2.Status == "rejected") exist2.Status = "received";
         }
         else
         {
@@ -2164,6 +2167,17 @@ app.MapPost("/api/ppp/submit-for-approval", async (AppDbContext db, HttpContext 
     await db.SaveChangesAsync();
 
     return Results.Ok(new { message = $"{queueItems.Count} items submitted for CMO approval.", count = queueItems.Count });
+}).RequireAuthorization();
+
+// POST /api/ppp/queue/{id}/reject — CMO rejects a PPP submission
+app.MapPost("/api/ppp/queue/{id:int}/reject", async (AppDbContext db, HttpContext ctx, int id) =>
+{
+    var companyId = ctx.GetRequiredCompanyId();
+    var item = await db.PppQueue.FirstOrDefaultAsync(q => q.Id == id && q.CompanyId == companyId);
+    if (item == null) return Results.NotFound(new { error = "Queue item not found" });
+    item.Status = "rejected";
+    await db.SaveChangesAsync();
+    return Results.Ok(new { message = "Item rejected." });
 }).RequireAuthorization();
 
 // ══════════════════════════════════════════════════
