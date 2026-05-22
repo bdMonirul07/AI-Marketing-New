@@ -50,15 +50,98 @@ body.theme-red {
 }
 
 body.theme-windo {
-  --bg-color: #F3F3F3;
-  --bg-secondary: #FFFFFF;
-  --text-color: #1C1C1C;
-  --text-dim: #6B6B6B;
+  --bg-color: #FFFFFF;
+  --bg-secondary: #F5F5F5;
+  --text-color: #000000;
+  --text-dim: #444444;
   --text-inverse: #FFFFFF;
-  --border-color: #D4D4D4;
-  --accent-color: #0078D4;
+  --border-color: #000000;
+  --accent-color: #B2040E;
   --card-bg: #FFFFFF;
   --input-bg: #FFFFFF;
+}
+
+/* Wizard-style layout overrides for windo theme */
+body.theme-windo #sidebar {
+  border-right: 2px solid #000000;
+  border-radius: 0;
+}
+
+body.theme-windo #sidebar h1 {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: #B2040E !important;
+  color: #B2040E !important;
+}
+
+body.theme-windo header {
+  border-bottom: 2px solid #000000;
+  border-radius: 0;
+}
+
+body.theme-windo #nav-links a,
+body.theme-windo #nav-links button {
+  border-radius: 0 !important;
+  border-left: 3px solid transparent;
+}
+
+body.theme-windo #nav-links .bg-\[var\(--accent-color\)\/10\],
+body.theme-windo #nav-links [class*="bg-cyan"],
+body.theme-windo #nav-links [class*="bg-amber"],
+body.theme-windo #nav-links [class*="bg-emerald"] {
+  background-color: #FFF0F0 !important;
+  border-left: 3px solid #B2040E !important;
+  color: #B2040E !important;
+  border-radius: 0 !important;
+}
+
+body.theme-windo .rounded-xl,
+body.theme-windo .rounded-2xl,
+body.theme-windo .rounded-lg,
+body.theme-windo .rounded-md,
+body.theme-windo .rounded-full {
+  border-radius: 0 !important;
+}
+
+body.theme-windo [class*="bg-[var(--card-bg)]"],
+body.theme-windo .bg-\[var\(--card-bg\)\] {
+  border: 1px solid #000000 !important;
+}
+
+body.theme-windo button:not([disabled]) {
+  border-radius: 0 !important;
+}
+
+body.theme-windo #content-container {
+  background: #FFFFFF !important;
+}
+
+body.theme-windo .border,
+body.theme-windo [class*="border-[var(--border-color)]"] {
+  border-color: #000000 !important;
+}
+
+body.theme-windo [class*="bg-cyan"],
+body.theme-windo [class*="bg-purple"],
+body.theme-windo [class*="bg-amber"],
+body.theme-windo [class*="bg-emerald"],
+body.theme-windo [class*="bg-rose"] {
+  background-color: #B2040E !important;
+  color: #FFFFFF !important;
+}
+
+body.theme-windo [class*="text-cyan"],
+body.theme-windo [class*="text-purple"],
+body.theme-windo [class*="text-amber"],
+body.theme-windo [class*="text-emerald"],
+body.theme-windo [class*="text-rose"] {
+  color: #B2040E !important;
+}
+
+body.theme-windo .bg-gradient-to-br,
+body.theme-windo .bg-gradient-to-r {
+  background-image: none !important;
+  background-color: #FFFFFF !important;
 }
 
 /* Task 78: Super Admin Platinum Theme */
