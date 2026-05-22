@@ -4180,7 +4180,6 @@ async function renderDeploySelectionScreen() {
           selectedPlatforms.add('Facebook')
           btn.classList.add('border-[#1877F2]', 'bg-[#1877F2]/5')
           indicator.classList.add('bg-[#1877F2]', 'border-[#1877F2]')
-          showNotification('Facebook config + creative specs attached to batch.', 'success')
         })
       } else {
         // Standard toggle for other platforms
@@ -6695,7 +6694,6 @@ function renderLoginScreen() {
         }
 
         fetchNotifications()
-        showNotification(`Welcome back, ${data.user.username}`, 'success')
         setTimeout(() => updateUI(), 1000)
       } else {
         showNotification("Authentication Failed: Invalid Credentials", "error")
@@ -6717,8 +6715,10 @@ roleSwitcherBtn.onclick = (e) => {
   toggleDropdown()
 }
 
-document.querySelectorAll('.role-option').forEach(opt => {
-  opt.onclick = () => switchRole(opt.dataset.role)
+document.getElementById('logout-btn')?.addEventListener('click', (e) => {
+  e.stopPropagation()
+  roleDropdown.classList.add('hidden')
+  handleLogout()
 })
 
 window.onclick = () => {
