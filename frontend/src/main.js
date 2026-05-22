@@ -314,9 +314,6 @@ const activeRoleDisplay = document.getElementById('active-role-display')
 const activeRoleIcon = document.getElementById('active-role-icon')
 const roleSwitcherBtn = document.getElementById('role-switcher-btn')
 const roleDropdown = document.getElementById('role-dropdown')
-const userInitial = document.getElementById('user-initial')
-const userName = document.getElementById('user-name')
-const logoutBtn = document.getElementById('logout-btn')
 const themeButtons = {
   dark: document.getElementById('theme-dark'),
   light: document.getElementById('theme-light'),
@@ -409,7 +406,6 @@ function exitCompanyContext() {
   updateUI()
 }
 
-if (logoutBtn) logoutBtn.onclick = handleLogout
 
 const SUPER_ADMIN_ONLY_SCREENS = ['GlobalDashboard', 'CompanyManagement', 'SystemConfig', 'PlatformService', 'AuditLog']
 
@@ -606,8 +602,6 @@ function updateUI() {
   activeRoleDisplay.innerText = roleDisplayName
   activeRoleIcon.innerText = roleIcon
   activeRoleIcon.className = `w-8 h-8 rounded-full bg-${themeColor}-900/50 flex items-center justify-center text-${themeColor}-400 font-bold border border-${themeColor}-500/30`
-  userInitial.innerText = state.user?.username ? state.user.username[0].toUpperCase() : roleIcon
-  userName.innerText = state.user?.username || `${roleDisplayName.split(' ')[1]} User`
 
   pageTitleName.innerText = currentScreen.label
 
