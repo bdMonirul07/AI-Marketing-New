@@ -337,6 +337,13 @@ body.theme-light [class*="bg-gradient"] {
   color: #2C3947 !important;
 }
 
+/* Restore card image hover overlay gradient */
+body.theme-light .group [class*="bg-gradient-to-t"],
+body.theme-light [class*="from-black"] {
+  background-image: linear-gradient(to top, rgba(0,0,0,0.80), transparent, transparent) !important;
+  background-color: transparent !important;
+}
+
 body.theme-blue {
   --bg-color: #0F172A;
   --bg-secondary: #1E293B;
@@ -538,6 +545,13 @@ body.theme-windo *::after {
 body.theme-windo [class*="bg-gradient"] {
   background-image: none !important;
   background-color: #D4D0C8 !important;
+}
+
+/* Restore card image hover overlay gradient */
+body.theme-windo .group [class*="bg-gradient-to-t"],
+body.theme-windo [class*="from-black"] {
+  background-image: linear-gradient(to top, rgba(0,0,0,0.80), transparent, transparent) !important;
+  background-color: transparent !important;
 }
 
 /* ── App shell background ── */
