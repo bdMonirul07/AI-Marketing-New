@@ -14,15 +14,159 @@
 }
 
 body.theme-light {
-  --bg-color: #E2E8F0;
-  --bg-secondary: #F8FAFC;
-  --text-color: #0F172A;
-  --text-dim: #475569;
+  --bg-color:     #F0F2F8;
+  --bg-secondary: #FFFFFF;
+  --text-color:   #111827;
+  --text-dim:     #6B7280;
   --text-inverse: #FFFFFF;
-  --border-color: #CBD5E1;
-  --accent-color: #2563EB;
-  --card-bg: #FFFFFF;
-  --input-bg: #F1F5F9;
+  --border-color: #E5E7EB;
+  --accent-color: #4F63D2;
+  --card-bg:      #FFFFFF;
+  --input-bg:     #FFFFFF;
+}
+
+/* ── LIGHT THEME — Modern SaaS Dashboard Style ── */
+
+/* App background */
+body.theme-light #app {
+  background: #F0F2F8 !important;
+}
+
+/* Sidebar — white panel, subtle right border */
+body.theme-light #sidebar {
+  background: #FFFFFF !important;
+  border-right: 1px solid #E5E7EB !important;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.05) !important;
+}
+
+body.theme-light #sidebar h1 {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: #4F63D2 !important;
+  color: #4F63D2 !important;
+  font-size: 18px !important;
+}
+
+body.theme-light #sidebar > div:first-child p {
+  color: #9CA3AF !important;
+  font-size: 10px !important;
+  letter-spacing: 0.08em !important;
+}
+
+/* Nav links — clean flat style */
+body.theme-light #nav-links button,
+body.theme-light #nav-links a {
+  color: #374151 !important;
+  background: transparent !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 8px 12px !important;
+  margin-bottom: 2px !important;
+  transition: all 0.15s ease !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+
+body.theme-light #nav-links button:hover,
+body.theme-light #nav-links a:hover {
+  background: #F3F4F6 !important;
+  color: #4F63D2 !important;
+}
+
+/* Active nav item — indigo pill */
+body.theme-light #nav-links [class*="bg-cyan"],
+body.theme-light #nav-links [class*="bg-amber"],
+body.theme-light #nav-links [class*="bg-emerald"],
+body.theme-light #nav-links [class*="bg-[var(--accent"] {
+  background: #EEF2FF !important;
+  color: #4F63D2 !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+}
+
+/* Header */
+body.theme-light header {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid #E5E7EB !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+}
+
+body.theme-light #current-page-name {
+  color: #111827 !important;
+}
+
+/* Content container */
+body.theme-light #content-container {
+  background: #F0F2F8 !important;
+}
+
+/* Cards — white with soft shadow */
+body.theme-light .bg-\[var\(--card-bg\)\],
+body.theme-light [class*="bg-[var(--card-bg"] {
+  background: #FFFFFF !important;
+  border: 1px solid #E5E7EB !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06) !important;
+  border-radius: 12px !important;
+}
+
+/* Inputs */
+body.theme-light input,
+body.theme-light select,
+body.theme-light textarea {
+  background: #FFFFFF !important;
+  border: 1px solid #D1D5DB !important;
+  color: #111827 !important;
+  border-radius: 8px !important;
+}
+
+body.theme-light input:focus,
+body.theme-light select:focus,
+body.theme-light textarea:focus {
+  border-color: #4F63D2 !important;
+  box-shadow: 0 0 0 3px rgba(79,99,210,0.15) !important;
+  outline: none !important;
+}
+
+/* Buttons */
+body.theme-light button {
+  border-radius: 8px !important;
+}
+
+/* Accent-colored elements → indigo */
+body.theme-light [class*="text-cyan"],
+body.theme-light [class*="text-purple"] {
+  color: #4F63D2 !important;
+}
+
+/* Text colors */
+body.theme-light [class*="text-gray-400"],
+body.theme-light [class*="text-gray-500"] {
+  color: #9CA3AF !important;
+}
+
+body.theme-light [class*="text-gray-300"] {
+  color: #D1D5DB !important;
+}
+
+/* Borders */
+body.theme-light [class*="border-white/5"],
+body.theme-light [class*="border-white/10"],
+body.theme-light [class*="border-white/20"] {
+  border-color: #E5E7EB !important;
+}
+
+/* Tables */
+body.theme-light table th {
+  background: #F9FAFB !important;
+  color: #6B7280 !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+body.theme-light table tr:hover {
+  background: #F5F7FF !important;
 }
 
 body.theme-blue {
