@@ -6650,7 +6650,7 @@ function renderLoginScreen() {
     const email = document.getElementById('login-email').value
     const password = document.getElementById('login-password').value
 
-    if (!email || !password) return showNotification("Please enter credentials", "error")
+    if (!email || !password) return
 
     const btn = document.getElementById('btn-execute-login')
     btn.disabled = true
