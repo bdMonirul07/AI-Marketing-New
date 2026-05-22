@@ -49,99 +49,221 @@ body.theme-red {
   --input-bg: #111111;
 }
 
+/* ── WINDO THEME — Windows Classic Wizard Style ── */
 body.theme-windo {
-  --bg-color: #FFFFFF;
-  --bg-secondary: #F5F5F5;
-  --text-color: #000000;
-  --text-dim: #444444;
-  --text-inverse: #FFFFFF;
-  --border-color: #000000;
-  --accent-color: #B2040E;
-  --card-bg: #FFFFFF;
-  --input-bg: #FFFFFF;
+  --bg-color:      #D4D0C8;
+  --bg-secondary:  #FFFFFF;
+  --text-color:    #000000;
+  --text-dim:      #444444;
+  --text-inverse:  #000000;
+  --border-color:  #808080;
+  --accent-color:  #000080;
+  --card-bg:       #D4D0C8;
+  --input-bg:      #FFFFFF;
+  font-family: Tahoma, Arial, sans-serif !important;
+  font-size: 12px !important;
 }
 
-/* Wizard-style layout overrides for windo theme */
+/* ── Remove all border-radius globally ── */
+body.theme-windo *,
+body.theme-windo *::before,
+body.theme-windo *::after {
+  border-radius: 0 !important;
+  font-family: Tahoma, Arial, sans-serif !important;
+}
+
+/* ── Flatten all gradients ── */
+body.theme-windo [class*="bg-gradient"] {
+  background-image: none !important;
+  background-color: #D4D0C8 !important;
+}
+
+/* ── App shell background ── */
+body.theme-windo #app {
+  background: #D4D0C8 !important;
+}
+
+/* ── SIDEBAR — white nav panel like wizard left pane ── */
 body.theme-windo #sidebar {
-  border-right: 2px solid #000000;
-  border-radius: 0;
+  background: #FFFFFF !important;
+  border-right: 2px solid #808080 !important;
+  width: 180px !important;
+  box-shadow: inset -1px 0 0 #FFFFFF !important;
+}
+
+body.theme-windo #sidebar > div:first-child {
+  background: #000080 !important;
+  padding: 12px 16px !important;
 }
 
 body.theme-windo #sidebar h1 {
   background: none !important;
   -webkit-background-clip: unset !important;
-  -webkit-text-fill-color: #B2040E !important;
-  color: #B2040E !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  color: #FFFFFF !important;
+  font-size: 13px !important;
+  font-weight: bold !important;
 }
 
-body.theme-windo header {
-  border-bottom: 2px solid #000000;
-  border-radius: 0;
+body.theme-windo #sidebar > div:first-child p {
+  color: #C0C0C0 !important;
 }
 
-body.theme-windo #nav-links a,
-body.theme-windo #nav-links button {
-  border-radius: 0 !important;
-  border-left: 3px solid transparent;
+/* Nav items — plain text links */
+body.theme-windo #nav-links button,
+body.theme-windo #nav-links a {
+  background: transparent !important;
+  color: #000000 !important;
+  border: none !important;
+  padding: 5px 12px !important;
+  font-size: 11px !important;
+  text-align: left !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: normal !important;
+  box-shadow: none !important;
 }
 
-body.theme-windo #nav-links .bg-\[var\(--accent-color\)\/10\],
+body.theme-windo #nav-links button:hover,
+body.theme-windo #nav-links a:hover {
+  background: #000080 !important;
+  color: #FFFFFF !important;
+}
+
+/* Active nav item — bold + blue highlight */
 body.theme-windo #nav-links [class*="bg-cyan"],
 body.theme-windo #nav-links [class*="bg-amber"],
-body.theme-windo #nav-links [class*="bg-emerald"] {
-  background-color: #FFF0F0 !important;
-  border-left: 3px solid #B2040E !important;
-  color: #B2040E !important;
-  border-radius: 0 !important;
+body.theme-windo #nav-links [class*="bg-emerald"],
+body.theme-windo #nav-links [class*="bg-[var(--accent"] {
+  background: #000080 !important;
+  color: #FFFFFF !important;
+  font-weight: bold !important;
 }
 
-body.theme-windo .rounded-xl,
-body.theme-windo .rounded-2xl,
-body.theme-windo .rounded-lg,
-body.theme-windo .rounded-md,
-body.theme-windo .rounded-full {
-  border-radius: 0 !important;
+/* ── HEADER — classic Windows title bar style ── */
+body.theme-windo header {
+  background: #D4D0C8 !important;
+  border-bottom: 2px solid #808080 !important;
+  height: auto !important;
+  box-shadow: inset 0 -1px 0 #FFFFFF !important;
 }
 
-body.theme-windo [class*="bg-[var(--card-bg)]"],
-body.theme-windo .bg-\[var\(--card-bg\)\] {
-  border: 1px solid #000000 !important;
+body.theme-windo header span,
+body.theme-windo header p,
+body.theme-windo header #current-page-name {
+  color: #000000 !important;
+  font-size: 12px !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
 }
 
-body.theme-windo button:not([disabled]) {
-  border-radius: 0 !important;
-}
-
+/* ── MAIN CONTENT AREA ── */
 body.theme-windo #content-container {
-  background: #FFFFFF !important;
+  background: #D4D0C8 !important;
+  padding: 12px !important;
 }
 
-body.theme-windo .border,
-body.theme-windo [class*="border-[var(--border-color)]"] {
-  border-color: #000000 !important;
+/* ── CARDS / PANELS — raised Windows dialog panel ── */
+body.theme-windo .bg-\[var\(--card-bg\)\],
+body.theme-windo [class*="bg-[var(--card-bg"] {
+  background: #D4D0C8 !important;
+  border: 1px solid !important;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF !important;
+  box-shadow: inset 1px 1px 0 #DFDFDF, inset -1px -1px 0 #808080 !important;
+}
+
+/* White content panels inside cards */
+body.theme-windo .bg-\[var\(--bg-secondary\)\],
+body.theme-windo [class*="bg-[var(--bg-secondary"] {
+  background: #FFFFFF !important;
+  border: 2px inset #808080 !important;
+}
+
+/* ── BUTTONS — classic Windows 3D button ── */
+body.theme-windo button {
+  background: #D4D0C8 !important;
+  color: #000000 !important;
+  border: 1px solid #808080 !important;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF !important;
+  box-shadow: inset 1px 1px 0 #DFDFDF, inset -1px -1px 0 #404040 !important;
+  padding: 4px 16px !important;
+  font-size: 11px !important;
+  font-weight: normal !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  cursor: pointer !important;
+  min-width: 75px !important;
+}
+
+body.theme-windo button:hover {
+  background: #EAF1FB !important;
+  border-color: #000080 !important;
+  color: #000000 !important;
+}
+
+body.theme-windo button:active {
+  box-shadow: inset -1px -1px 0 #DFDFDF, inset 1px 1px 0 #404040 !important;
+}
+
+body.theme-windo button:disabled {
+  color: #808080 !important;
+  box-shadow: none !important;
+}
+
+/* ── ALL colored utility classes → Windows palette ── */
+body.theme-windo [class*="text-cyan"],
+body.theme-windo [class*="text-purple"],
+body.theme-windo [class*="text-amber"],
+body.theme-windo [class*="text-emerald"],
+body.theme-windo [class*="text-rose"],
+body.theme-windo [class*="text-blue"] {
+  color: #000080 !important;
 }
 
 body.theme-windo [class*="bg-cyan"],
 body.theme-windo [class*="bg-purple"],
 body.theme-windo [class*="bg-amber"],
 body.theme-windo [class*="bg-emerald"],
-body.theme-windo [class*="bg-rose"] {
-  background-color: #B2040E !important;
-  color: #FFFFFF !important;
+body.theme-windo [class*="bg-rose"],
+body.theme-windo [class*="bg-blue"] {
+  background-color: #D4D0C8 !important;
+  color: #000000 !important;
 }
 
-body.theme-windo [class*="text-cyan"],
-body.theme-windo [class*="text-purple"],
-body.theme-windo [class*="text-amber"],
-body.theme-windo [class*="text-emerald"],
-body.theme-windo [class*="text-rose"] {
-  color: #B2040E !important;
+/* ── INPUTS — classic Windows text box ── */
+body.theme-windo input,
+body.theme-windo select,
+body.theme-windo textarea {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+  border: 2px inset #808080 !important;
+  font-size: 11px !important;
+  font-family: Tahoma, Arial, sans-serif !important;
 }
 
-body.theme-windo .bg-gradient-to-br,
-body.theme-windo .bg-gradient-to-r {
-  background-image: none !important;
-  background-color: #FFFFFF !important;
+/* ── BORDERS ── */
+body.theme-windo [class*="border-"] {
+  border-color: #808080 !important;
+}
+
+/* ── HEADINGS / LABELS ── */
+body.theme-windo h1, body.theme-windo h2, body.theme-windo h3,
+body.theme-windo h4, body.theme-windo h5 {
+  color: #000000 !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  background: none !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+
+/* ── SCROLLBARS — Windows classic ── */
+body.theme-windo ::-webkit-scrollbar { width: 16px; background: #D4D0C8; }
+body.theme-windo ::-webkit-scrollbar-track { background: #D4D0C8; border: 1px solid #808080; }
+body.theme-windo ::-webkit-scrollbar-thumb {
+  background: #D4D0C8;
+  border: 1px solid;
+  border-color: #FFFFFF #808080 #808080 #FFFFFF;
+  box-shadow: inset 1px 1px 0 #DFDFDF;
 }
 
 /* Task 78: Super Admin Platinum Theme */
