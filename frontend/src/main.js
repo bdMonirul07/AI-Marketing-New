@@ -260,6 +260,7 @@ const roles = {
       { id: 'Research', label: 'Strategy Hub', icon: '🧠' },
       { id: 'CreativeConfig', label: 'Creative Config', icon: '🎬' },
       { id: 'Studio', label: 'Creative Studio', icon: '🎨' },
+      { id: 'CreativeAssets', label: 'Creative Assets', icon: '🖼️' },
     ]
   }
 }
@@ -272,6 +273,7 @@ const screenRegistry = {
   'Research': { label: 'Strategy Hub', icon: '🧠' },
   'CreativeConfig': { label: 'Creative Config', icon: '🎬' },
   'Studio': { label: 'Creative Studio', icon: '🎨' },
+  'CreativeAssets': { label: 'Creative Assets', icon: '🖼️' },
   'AudienceInsights': { label: 'Audience Insights', icon: '📈' },
   'CompetitorResearch': { label: 'Competitor Research', icon: '🔍' },
   // CMO
@@ -675,6 +677,9 @@ function renderScreen(screenId) {
       break
     case 'Studio':
       renderStudioScreen()
+      break
+    case 'CreativeAssets':
+      renderCreativeAssetsScreen()
       break
     case 'Monitoring':
       renderMonitoringScreen()
@@ -1870,6 +1875,62 @@ async function renderStudioScreen() {
   } catch (error) {
     console.error('Error rendering studio:', error)
     contentContainer.innerHTML = `<div class="p-8 text-center text-rose-500 font-bold">Error loading assets: ${error.message}</div>`
+  }
+}
+
+async function renderCreativeAssetsScreen() {
+  contentContainer.innerHTML = `
+    <div class="flex items-center justify-center h-full">
+      <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cyan-500"></div>
+    </div>
+  `
+  try {
+    const res = await apiFetch('/ppp/queue')
+    const queue = res.ok ? await res.json() : []
+    const deployedAssets = (queue || []).filter(item => item.status === 'deployed')
+
+    const platformIcons = { facebook: '📘', tiktok: '🎵', youtube: '▶️', google: '🔍' }
+
+    contentContainer.innerHTML = `
+      <div class="space-y-6">
+        <div class="flex justify-between items-end">
+          <div>
+            <h2 class="text-3xl font-black uppercase tracking-tighter">Creative Assets</h2>
+            <p class="text-gray-500 text-sm">Creatives approved by PPP & CMO — ready for deployment</p>
+          </div>
+          <button id="refresh-assets-btn" class="px-4 py-2.5 bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 font-bold rounded-lg transition-all uppercase tracking-widest text-xs hover:bg-emerald-500 hover:text-white">
+            ↻ Refresh
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          ${deployedAssets.length === 0 ? `
+            <p class="col-span-full text-center text-gray-500 py-12">No approved assets yet. Assets approved by PPP &amp; CMO will appear here.</p>
+          ` : deployedAssets.map(item => {
+            const icon = platformIcons[item.platform?.toLowerCase()] || '📁'
+            return `
+              <div class="bg-[var(--card-bg)] border border-emerald-500/30 rounded-xl overflow-hidden flex flex-col">
+                <div class="aspect-video relative overflow-hidden bg-black flex items-center justify-center">
+                  ${item.type === 'video'
+                    ? (item.url ? `<video src="${item.url}" class="w-full h-full object-contain" controls></video>` : `<div class="text-3xl">🎬</div>`)
+                    : (item.url ? `<img src="${item.url}" alt="${item.title || ''}" class="w-full h-full object-cover">` : `<div class="text-3xl">🖼️</div>`)
+                  }
+                  <div class="absolute top-2 right-2 px-2 py-0.5 bg-emerald-500/90 rounded-full text-[8px] font-black text-black uppercase tracking-widest">✅ Approved</div>
+                  ${item.platform ? `<div class="absolute top-2 left-2 px-2 py-0.5 bg-black/70 rounded-full text-[8px] font-black uppercase tracking-widest text-gray-300">${icon} ${item.platform}</div>` : ''}
+                </div>
+                <div class="p-3">
+                  <p class="text-sm font-bold truncate">${item.title || item.id}</p>
+                  <p class="text-[9px] text-gray-500 uppercase tracking-widest mt-0.5">${item.platform ? `Platform: ${item.platform.toUpperCase()}` : 'Asset'}</p>
+                </div>
+              </div>`
+          }).join('')}
+        </div>
+      </div>
+    `
+
+    document.getElementById('refresh-assets-btn').onclick = () => renderCreativeAssetsScreen()
+  } catch (error) {
+    contentContainer.innerHTML = `<div class="p-8 text-center text-rose-500 font-bold">Error loading creative assets: ${error.message}</div>`
   }
 }
 
