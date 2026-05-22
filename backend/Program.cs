@@ -165,14 +165,15 @@ using (var scope = app.Services.CreateScope())
         ALTER TABLE ad_creatives ADD COLUMN IF NOT EXISTS cost_per_result NUMERIC(15,4);
         ALTER TABLE ad_creatives ADD COLUMN IF NOT EXISTS target_cpa NUMERIC(15,4);
         ALTER TABLE ppp_queue ADD COLUMN IF NOT EXISTS status VARCHAR(30) NOT NULL DEFAULT 'received';
-        UPDATE ppp_queue SET status = 'received'   WHERE status NOT IN ('received','budget_configured','ready_for_approval','deployed','rejected');
+        UPDATE ppp_queue SET status = 'received'   WHERE status NOT IN ('received','budget_configured','ready_for_approval','deployed','dispatched','rejected');
         DO $$ BEGIN
-            IF NOT EXISTS (
+            IF EXISTS (
                 SELECT 1 FROM pg_constraint WHERE conname = 'chk_pppqueue_status'
             ) THEN
-                ALTER TABLE ppp_queue ADD CONSTRAINT chk_pppqueue_status
-                    CHECK (status IN ('received','budget_configured','ready_for_approval','deployed','rejected'));
+                ALTER TABLE ppp_queue DROP CONSTRAINT chk_pppqueue_status;
             END IF;
+            ALTER TABLE ppp_queue ADD CONSTRAINT chk_pppqueue_status
+                CHECK (status IN ('received','budget_configured','ready_for_approval','deployed','dispatched','rejected'));
         END $$;
     ");
 
@@ -1853,7 +1854,7 @@ app.MapPost("/api/cmo/queue", async (AppDbContext db, HttpContext ctx, HttpReque
 app.MapGet("/api/ppp/queue", async (AppDbContext db, HttpContext ctx) =>
 {
     var companyId = ctx.GetCompanyId();
-    var query = db.PppQueue.Where(q => q.Status != "rejected").AsQueryable();
+    var query = db.PppQueue.Where(q => q.Status != "rejected" && q.Status != "dispatched").AsQueryable();
     if (companyId.HasValue) query = query.Where(q => q.CompanyId == companyId);
     var items = await query.OrderBy(q => q.QueueIndex).ToListAsync();
     // Load budgets for all items
@@ -1954,7 +1955,7 @@ app.MapPatch("/api/ppp/queue/dispatched", async (AppDbContext db, HttpContext ct
         item.Status = "dispatched";
     await db.SaveChangesAsync();
     return Results.Ok(new { updated = items.Count });
-});
+}).RequireAuthorization();
 
 // Legacy alias
 app.MapGet("/api/ppc/queue", async (AppDbContext db, HttpContext ctx) =>
